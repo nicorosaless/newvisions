@@ -44,21 +44,26 @@ html, body {
 body {
   background: linear-gradient(135deg, var(--background-color) 0%, #1a1a1a 100%);
   color: var(--text-primary);
-  
-  /* Prevent zoom on iOS */
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
-  
-  /* Prevent scrolling */
-  overflow: hidden;
+  overflow: hidden; /* default: no scroll for most screens */
   position: fixed;
   width: 100%;
   height: 100%;
-  
-  /* Prevent touch scrolling on mobile */
   -webkit-overflow-scrolling: touch;
   touch-action: none;
 }
+
+/* Enable scrolling when token usage screen active */
+body.scroll-enabled {
+  position: static;
+  height: auto;
+  min-height: 100vh;
+  overflow-y: auto;
+  touch-action: auto;
+}
+
+body.scroll-enabled #app { height: auto; min-height: 100vh; }
 
 #app {
   width: 100%;
@@ -847,4 +852,143 @@ body {
 
 .auth-card {
   animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* =========================
+   New Token Usage Redesign
+   ========================= */
+.tokens-page {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.06), transparent 60%),
+              linear-gradient(135deg, var(--background-color) 0%, #121212 100%);
+  padding: 1.25rem clamp(1rem, 3vw, 2.5rem) 2rem;
+  position: relative;
+}
+
+.tokens-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  height: 56px;
+  padding-bottom: .25rem;
+}
+
+.tokens-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(1.65rem, 4.2vw, 2.75rem);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.035em;
+  background: linear-gradient(120deg, var(--text-primary), var(--text-secondary));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.icon-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: all .25s ease;
+}
+.icon-btn:hover { background: rgba(255,255,255,0.12); }
+.icon-btn:active { transform: scale(.94); }
+.icon-btn-chevron { font-size: 1.1rem; font-weight: 500; }
+.topbar-spacer { width:44px; }
+
+.tokens-main { flex:1; display:flex; flex-direction:column; gap:2.25rem; }
+
+.glass-panel {
+  background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border-radius: 28px;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.08) inset;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  position: relative;
+  overflow: hidden;
+}
+.glass-panel:before {
+  content:"";
+  position:absolute; inset:0;
+  background: radial-gradient(circle at 75% 15%, rgba(255,255,255,0.25), transparent 55%);
+  pointer-events:none;
+  mix-blend-mode: overlay;
+}
+
+.progress-panel { display:flex; flex-direction:column; align-items:center; gap:1.75rem; }
+
+.progress-ring { width: 240px; height:240px; position:relative; }
+@media (max-width:640px){ .progress-ring { width:200px; height:200px; } }
+
+.progress-ring-svg { width:100%; height:100%; }
+.ring-background { fill:none; stroke:rgba(255,255,255,0.1); stroke-width:8; }
+.ring-progress { fill:none; stroke: var(--primary-hover); stroke-width:8; stroke-linecap:round; transform: rotate(-90deg); transform-origin:center; filter: drop-shadow(0 0 8px rgba(0,122,255,0.55)); }
+
+.progress-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+.progress-value { font-size:3.8rem; font-weight:300; letter-spacing:-0.05em; display:inline-flex; align-items:flex-start; gap:.25rem; }
+.progress-unit { font-size:1.25rem; opacity:.6; align-self:flex-start; margin-top:.65rem; }
+.progress-label { display:block; font-size:.95rem; font-weight:500; text-transform:uppercase; letter-spacing:.18em; opacity:.55; margin-top:.35rem; }
+
+.inline-stats { display:flex; gap:1.5rem; flex-wrap:wrap; justify-content:center; }
+.inline-stat { display:flex; flex-direction:column; min-width:88px; text-align:center; }
+.inline-stat .stat-label { font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; opacity:.5; font-weight:600; }
+.inline-stat .stat-value { font-size:1.15rem; font-weight:600; letter-spacing:-0.02em; }
+
+.metrics-grid { display:grid; gap:1.5rem; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); }
+.metric-card { position:relative; display:flex; flex-direction:column; gap:.35rem; min-height:140px; }
+.metric-label { font-size:.75rem; text-transform:uppercase; letter-spacing:.18em; opacity:.55; font-weight:600; }
+.metric-number { font-size:1.9rem; font-weight:600; letter-spacing:-0.035em; line-height:1.1; }
+.metric-number.emphasis { font-size:2.1rem; }
+.metric-trend { font-size:.8rem; opacity:.55; font-weight:400; letter-spacing:.02em; }
+.metric-trend.good { color:#2ECC71; opacity:.85; }
+.metric-trend.neutral { color: var(--text-secondary); }
+.metric-card.accent { background: linear-gradient(140deg, rgba(0,122,255,0.25), rgba(0,122,255,0.05)); }
+.metric-card.accent:before { background: radial-gradient(circle at 35% 25%, rgba(0,122,255,0.5), transparent 70%); }
+
+.reset-note-panel { text-align:center; margin-top:auto; padding: .25rem 1rem 0 1rem; }
+.reset-note-text { font-size:.75rem; max-width:520px; margin:0 auto; line-height:1.4; opacity:.55; letter-spacing:.015em; }
+
+/* Light mode adaptations */
+@media (prefers-color-scheme: light) {
+  .tokens-page { background: radial-gradient(circle at 30% 20%, rgba(0,0,0,0.03), transparent 60%), linear-gradient(135deg, var(--background-color) 0%, #F0F0F3 100%); }
+  .icon-btn { background: rgba(0,0,0,0.04); }
+  .icon-btn:hover { background: rgba(0,0,0,0.07); }
+  .glass-panel { background: linear-gradient(160deg, rgba(255,255,255,0.85), rgba(255,255,255,0.65)); border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.6) inset; }
+  .glass-panel:before { background: radial-gradient(circle at 75% 15%, rgba(255,255,255,0.7), transparent 55%); }
+  .ring-background { stroke: rgba(0,0,0,0.08); }
+  .ring-progress { filter: drop-shadow(0 0 6px rgba(0,122,255,0.4)); }
+  .metric-trend.good { color:#1B8F4D; }
+}
+
+@media (max-width: 820px) {
+  .metrics-grid { grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); }
+  .metric-number { font-size:1.65rem; }
+  .metric-number.emphasis { font-size:1.85rem; }
+  .progress-value { font-size:3.2rem; }
+}
+
+@media (max-width: 540px) {
+  .tokens-page { padding: .75rem 1rem 1.5rem 1rem; }
+  .tokens-topbar { height:50px; }
+  .icon-btn { width:40px; height:40px; border-radius:12px; }
+  .progress-panel { gap:1.25rem; }
+  .metrics-grid { gap:1rem; }
+  .glass-panel { border-radius:22px; }
 }

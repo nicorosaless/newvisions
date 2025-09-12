@@ -35,6 +35,12 @@ function performScreenTransition(targetScreen) {
   setTimeout(() => {
     setCurrentScreen(targetScreen);
     renderScreen();
+    // Toggle scroll behavior for tokens screen
+    if (targetScreen === 'tokens') {
+      document.body.classList.add('scroll-enabled');
+    } else {
+      document.body.classList.remove('scroll-enabled');
+    }
     const newContainer = getNewScreenContainer(targetScreen);
     if (newContainer) {
       newContainer.style.opacity = '0';
