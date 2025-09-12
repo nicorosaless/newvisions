@@ -6,7 +6,7 @@
   color-scheme: light dark;
   
   /* Color palette - Apple-inspired */
-  --primary-color: #007AFF;
+  --primary-color: #052c56;
   --primary-hover: #0056CC;
   --background-color: #000000;
   --surface-color: #1C1C1E;
@@ -364,8 +364,43 @@ body {
 .home-header p {
   font-size: 1.1rem;
   color: var(--text-secondary);
-  margin: 0;
+  margin: 0 0 1.5rem 0;
   font-weight: 400;
+}
+
+/* Credits Button */
+.credits-button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0 auto;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10;
+}
+
+.credits-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.credits-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.credits-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
 }
 
 .home-content {
@@ -571,6 +606,230 @@ body {
   
   .signout-button:hover {
     background: rgba(0, 0, 0, 0.02);
+  }
+}
+
+/* Token Screen Styles */
+.tokens-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0 3rem 0;
+  margin-bottom: 2rem;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 1.05rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.back-button:hover {
+  opacity: 0.6;
+}
+
+.tokens-header h1 {
+  font-size: 2.75rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+  letter-spacing: -0.04em;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tokens-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rem;
+  padding-bottom: 3rem;
+}
+
+/* Usage Overview Section - Main Focus */
+.usage-overview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.usage-circle {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin-bottom: 1.5rem;
+}
+
+.usage-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.usage-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.usage-percentage {
+  display: block;
+  font-size: 4.2rem;
+  font-weight: 200;
+  color: var(--text-primary);
+  line-height: 0.9;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.06em;
+}
+
+.usage-label {
+  display: block;
+  font-size: 1.3rem;
+  color: var(--text-secondary);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+/* Token Stats - Secondary Information */
+.token-stats {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 500px;
+  gap: 3rem;
+  opacity: 0.85;
+}
+
+.stat-card {
+  flex: 1;
+  text-align: center;
+  padding: 0;
+  background: none;
+  border: none;
+  max-width: 140px;
+}
+
+.stat-number {
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* Reset Info - Tertiary Information */
+.reset-info {
+  text-align: center;
+  margin-top: auto;
+  opacity: 0.7;
+}
+
+.reset-card {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.reset-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.reset-date {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.3rem;
+  letter-spacing: -0.01em;
+}
+
+.reset-countdown {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  font-weight: 400;
+}
+
+.reset-note {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+/* Mobile optimizations for token screen */
+@media (max-width: 768px) {
+  .tokens-header {
+    padding: 0.5rem 0 2rem 0;
+    margin-bottom: 1.5rem;
+  }
+
+  .tokens-header h1 {
+    font-size: 2.2rem;
+  }
+
+  .usage-circle {
+    width: 180px;
+    height: 180px;
+    margin-bottom: 1.2rem;
+  }
+
+  .usage-percentage {
+    font-size: 3.2rem;
+  }
+
+  .usage-label {
+    font-size: 1.1rem;
+  }
+
+  .tokens-content {
+    gap: 3rem;
+  }
+
+  .token-stats {
+    gap: 2rem;
+    max-width: 400px;
+  }
+
+  .stat-number {
+    font-size: 1.4rem;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+  }
+
+  .reset-date {
+    font-size: 1.1rem;
   }
 }
 
