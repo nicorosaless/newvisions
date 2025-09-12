@@ -3,6 +3,8 @@ import { renderLoginScreen } from './screens/login.js';
 import { renderSignupScreen } from './screens/signup.js';
 import { renderHomeScreen } from './screens/home.js';
 import { renderTokenScreen } from './screens/tokens.js';
+import { renderSettingsScreen } from './screens/settings.js';
+import { renderVoiceCloneScreen } from './screens/voice-clone.js';
 import { setupEventListeners } from './events.js';
 
 export function renderScreen() {
@@ -20,6 +22,12 @@ export function renderScreen() {
     case 'tokens':
       app.innerHTML = renderTokenScreen();
       break;
+    case 'settings':
+      app.innerHTML = renderSettingsScreen();
+      break;
+    case 'voice-clone':
+      app.innerHTML = renderVoiceCloneScreen();
+      break;
   }
   setupEventListeners();
 }
@@ -36,7 +44,7 @@ function performScreenTransition(targetScreen) {
     setCurrentScreen(targetScreen);
     renderScreen();
     // Toggle scroll behavior for tokens screen
-    if (targetScreen === 'tokens') {
+    if (targetScreen === 'tokens' || targetScreen === 'settings' || targetScreen === 'voice-clone') {
       document.body.classList.add('scroll-enabled');
     } else {
       document.body.classList.remove('scroll-enabled');
@@ -56,12 +64,14 @@ function performScreenTransition(targetScreen) {
 function getCurrentScreenContainer() {
   const current = getCurrentScreen();
   if (['login','signup'].includes(current)) return document.getElementById('auth-card');
-  if (['home','tokens'].includes(current)) return document.querySelector('.home-container');
+  if (['home','tokens','settings','voice-clone'].includes(current)) return document.querySelector('.home-container, .settings-container, .voice-clone-container');
   return null;
 }
 
 function getNewScreenContainer(screen) {
   if (['login','signup'].includes(screen)) return document.getElementById('auth-card');
   if (['home','tokens'].includes(screen)) return document.querySelector('.home-container');
+  if (screen === 'settings') return document.querySelector('.settings-container');
+  if (screen === 'voice-clone') return document.querySelector('.voice-clone-container');
   return null;
 }
