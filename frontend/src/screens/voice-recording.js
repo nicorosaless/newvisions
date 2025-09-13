@@ -93,7 +93,7 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                                                 <h4 class="recording-title">Recording on 14 Apr 2024</h4>
                                                 <div class="recording-subtitle">14 Apr 2024</div>
                                         </div>
-                                        <div class="recording-duration">15:42</div>
+                                        <div class="recording-duration">5:42</div>
                                     </div>
                                     
                                     <div class="playback-controls hidden">
@@ -184,6 +184,249 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                                 </div>
                             </div>
 
+                            <div class="recording-card" data-recording-id="4">
+                                <div class="recording-main">
+                                    <div class="recording-header">
+                                        <div class="recording-info">
+                                                <h4 class="recording-title">Recording on 15 Mar 2023</h4>
+                                                <div class="recording-subtitle">15 Mar 2023</div>
+                                        </div>
+                                        <div class="recording-duration">3:12</div>
+                                    </div>
+                                    
+                                    <div class="playback-controls hidden">
+                                        <button class="control-button skip-backward">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="19,20 9,12 19,4"></polygon>
+                                                <line x1="5" y1="19" x2="5" y2="5"></line>
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="control-button play-pause-btn">
+                                            <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5,3 19,12 5,21"></polygon>
+                                            </svg>
+                                            <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <rect x="6" y="4" width="4" height="16"></rect>
+                                                <rect x="14" y="4" width="4" height="16"></rect>
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="control-button skip-forward">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5,4 15,12 5,20"></polygon>
+                                                <line x1="19" y1="5" x2="19" y2="19"></line>
+                                            </svg>
+                                        </button>
+                                        
+                                        <div class="progress-container">
+                                            <div class="progress-bar">
+                                                <div class="progress-fill"></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="playback-time">
+                                            <span class="current-time">0:00</span>
+                                            <span class="total-time">3:12</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="recording-card" data-recording-id="5">
+                                <div class="recording-main">
+                                    <div class="recording-header">
+                                        <div class="recording-info">
+                                                <h4 class="recording-title">Recording on 22 Jan 2023</h4>
+                                                <div class="recording-subtitle">22 Jan 2023</div>
+                                        </div>
+                                        <div class="recording-duration">0:45</div>
+                                    </div>
+                                    
+                                    <div class="playback-controls hidden">
+                                        <button class="control-button skip-backward">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="19,20 9,12 19,4"></polygon>
+                                                <line x1="5" y1="19" x2="5" y2="5"></line>
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="control-button play-pause-btn">
+                                            <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5,3 19,12 5,21"></polygon>
+                                            </svg>
+                                            <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <rect x="6" y="4" width="4" height="16"></rect>
+                                                <rect x="14" y="4" width="4" height="16"></rect>
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="control-button skip-forward">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5,4 15,12 5,20"></polygon>
+                                                <line x1="19" y1="5" x2="19" y2="19"></line>
+                                            </svg>
+                                        </button>
+                                        
+                                        <div class="progress-container">
+                                            <div class="progress-bar">
+                                                <div class="progress-fill"></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="playback-time">
+                                            <span class="current-time">0:00</span>
+                                            <span class="total-time">0:45</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="recording-card" data-recording-id="6">
+                                <div class="recording-main">
+                                    <div class="recording-header">
+                                        <div class="recording-info">
+                                                <h4 class="recording-title">Recording on 8 Dec 2022</h4>
+                                                <div class="recording-subtitle">8 Dec 2022</div>
+                                        </div>
+                                        <div class="recording-duration">5:33</div>
+                                    </div>
+                                    
+                                    <div class="playback-controls hidden">
+                                        <button class="control-button skip-backward">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="19,20 9,12 19,4"></polygon>
+                                                <line x1="5" y1="19" x2="5" y2="5"></line>
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="control-button play-pause-btn">
+                                            <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5,3 19,12 5,21"></polygon>
+                                            </svg>
+                                            <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <rect x="6" y="4" width="4" height="16"></rect>
+                                                <rect x="14" y="4" width="4" height="16"></rect>
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="control-button skip-forward">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5,4 15,12 5,20"></polygon>
+                                                <line x1="19" y1="5" x2="19" y2="19"></line>
+                                            </svg>
+                                        </button>
+                                        
+                                        <div class="progress-container">
+                                            <div class="progress-bar">
+                                                <div class="progress-fill"></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="playback-time">
+                                            <span class="current-time">0:00</span>
+                                            <span class="total-time">5:33</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="recording-card" data-recording-id="7">
+                                <div class="recording-main">
+                                    <div class="recording-header">
+                                        <div class="recording-info">
+                                                <h4 class="recording-title">Recording on 19 Sep 2022</h4>
+                                                <div class="recording-subtitle">19 Sep 2022</div>
+                                        </div>
+                                        <div class="recording-duration">2:18</div>
+                                    </div>
+                                    
+                                    <div class="playback-controls hidden">
+                                        <button class="control-button skip-backward">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="19,20 9,12 19,4"></polygon>
+                                                <line x1="5" y1="19" x2="5" y2="5"></line>
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="control-button play-pause-btn">
+                                            <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5,3 19,12 5,21"></polygon>
+                                            </svg>
+                                            <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <rect x="6" y="4" width="4" height="16"></rect>
+                                                <rect x="14" y="4" width="4" height="16"></rect>
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="control-button skip-forward">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5,4 15,12 5,20"></polygon>
+                                                <line x1="19" y1="5" x2="19" y2="19"></line>
+                                            </svg>
+                                        </button>
+                                        
+                                        <div class="progress-container">
+                                            <div class="progress-bar">
+                                                <div class="progress-fill"></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="playback-time">
+                                            <span class="current-time">0:00</span>
+                                            <span class="total-time">2:18</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="recording-card" data-recording-id="8">
+                                <div class="recording-main">
+                                    <div class="recording-header">
+                                        <div class="recording-info">
+                                                <h4 class="recording-title">Recording on 3 Jul 2022</h4>
+                                                <div class="recording-subtitle">3 Jul 2022</div>
+                                        </div>
+                                        <div class="recording-duration">4:07</div>
+                                    </div>
+                                    
+                                    <div class="playback-controls hidden">
+                                        <button class="control-button skip-backward">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="19,20 9,12 19,4"></polygon>
+                                                <line x1="5" y1="19" x2="5" y2="5"></line>
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="control-button play-pause-btn">
+                                            <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5,3 19,12 5,21"></polygon>
+                                            </svg>
+                                            <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <rect x="6" y="4" width="4" height="16"></rect>
+                                                <rect x="14" y="4" width="4" height="16"></rect>
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="control-button skip-forward">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5,4 15,12 5,20"></polygon>
+                                                <line x1="19" y1="5" x2="19" y2="19"></line>
+                                            </svg>
+                                        </button>
+                                        
+                                        <div class="progress-container">
+                                            <div class="progress-bar">
+                                                <div class="progress-fill"></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="playback-time">
+                                            <span class="current-time">0:00</span>
+                                            <span class="total-time">4:07</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
 

@@ -84,6 +84,16 @@ body:has(.home-container) {
   overflow: hidden !important;
 }
 
+/* Disable scrolling for routine selection screen */
+body:has(.routine-selection-container) {
+  overflow: hidden !important;
+}
+
+/* Disable scrolling for text input routine screen */
+body:has(.text-input-routine-container) {
+  overflow: hidden !important;
+}
+
 /* Disable scrolling when voice recording screen is active */
 body:has(.voice-recorder-app),
 html:has(.voice-recorder-app) {
@@ -2651,22 +2661,22 @@ body:has(.home-container) #app {
 .routine-button {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 20px;
+  border-radius: 8px;
   color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 1rem 1rem;
+  padding: 0.15rem 0.375rem;
   position: relative;
   overflow: hidden;
   backdrop-filter: blur(20px);
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
   opacity: 0;
   transform: translateY(20px);
-  min-height: 70px;
-  height: 100%;
+  min-height: 12px;
+  height: auto;
 }
 
 .routine-button::before {
@@ -2700,7 +2710,7 @@ body:has(.home-container) #app {
 }
 
 .routine-title {
-  font-size: 1.1rem;
+  font-size: 0.6rem;
   font-weight: 700;
   text-align: center;
   letter-spacing: 0.05em;
@@ -2795,14 +2805,14 @@ body:has(.home-container) #app {
   }
   
   .routine-button {
-    padding: 0.875rem 0.75rem;
-    border-radius: 16px;
-    min-height: 60px;
+    padding: 0.2rem 0.3rem;
+    border-radius: 8px;
+    min-height: 16px;
     height: 100%;
   }
   
   .routine-title {
-    font-size: 0.9rem;
+    font-size: 0.55rem;
   }
 }
 
@@ -2871,17 +2881,25 @@ body:has(.home-container) #app {
 
 /* ===== TEXT INPUT ROUTINE SCREENS ===== */
 .text-input-routine-container {
+  /* Make this screen occupy the viewport and prevent any scrolling */
+  position: fixed;
+  inset: 0; /* top:0; right:0; bottom:0; left:0 */
   padding: 10px 20px 20px 20px;
   background: var(--background-color);
   color: var(--text-primary);
-  min-height: 100vh;
-  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  -webkit-overflow-scrolling: auto;
 }
 
 .text-input-content {
   max-width: 400px;
-  margin: 1rem auto;
-  padding: 0 1rem;
+  margin: 0 auto;
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
 }
 
 .text-input-content .input-group {
@@ -3988,6 +4006,18 @@ body:has(.voice-recorder-app) #app {
   height: 28px;
   opacity: 1;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+}
+
+/* Light mode adjustments for play-pause button icons */
+@media (prefers-color-scheme: light) {
+  .play-pause-btn svg {
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+  }
+  
+  .play-pause-btn svg * {
+    fill: white !important;
+    stroke: white !important;
+  }
 }
 
 .playback-time {
