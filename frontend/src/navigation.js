@@ -46,8 +46,10 @@ function performScreenTransition(targetScreen) {
     // Toggle scroll behavior for tokens screen
     if (targetScreen === 'tokens' || targetScreen === 'settings' || targetScreen === 'voice-clone') {
       document.body.classList.add('scroll-enabled');
+      console.log('Added scroll-enabled class for screen:', targetScreen);
     } else {
       document.body.classList.remove('scroll-enabled');
+      console.log('Removed scroll-enabled class for screen:', targetScreen);
     }
     const newContainer = getNewScreenContainer(targetScreen);
     if (newContainer) {
