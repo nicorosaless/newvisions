@@ -2544,9 +2544,9 @@ body:has(.home-container) #app {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1rem 1.5rem;
-  margin-bottom: 0.5rem;
-  padding-top: calc(env(safe-area-inset-top, 0) + 1rem);
+  padding: 0.5rem 1.5rem;
+  margin-bottom: 0.25rem;
+  padding-top: calc(env(safe-area-inset-top, 0) + 0.5rem);
   position: relative;
   z-index: 10;
   flex-shrink: 0;
@@ -2820,5 +2820,391 @@ body:has(.home-container) #app {
   
   .routine-title {
     font-size: 1.2rem;
+  }
+}
+
+/* ===== TEXT INPUT ROUTINE SCREENS ===== */
+.text-input-routine-container {
+  padding: 10px 20px 20px 20px;
+  background: var(--background-color);
+  color: var(--text-primary);
+  min-height: 100vh;
+  position: relative;
+}
+
+.text-input-content {
+  max-width: 400px;
+  margin: 1rem auto;
+  padding: 0 1rem;
+}
+
+.text-input-content .input-group {
+  margin-bottom: 2rem;
+}
+
+.text-input-content .perform-button {
+  width: 100%;
+  padding: 1rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.text-input-content .perform-button:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+}
+
+.text-input-content .perform-button:active {
+  transform: translateY(0);
+}
+
+/* ===== CARDS ROUTINE SCREEN ===== */
+.cards-routine-container {
+  padding: 10px 20px 20px 20px;
+  background: var(--background-color);
+  color: var(--text-primary);
+  min-height: 100vh;
+  position: relative;
+}
+
+.cards-content {
+  max-width: 600px;
+  margin: 1rem auto;
+  padding: 0 1rem;
+}
+
+.cards-section {
+  margin-bottom: 2rem;
+}
+
+.cards-section h3 {
+  text-align: center;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.card-values-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.card-suits-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.card-button {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+}
+
+.card-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.card-button.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.suit-button {
+  min-height: 70px;
+}
+
+.suit-icon {
+  font-size: 1.3rem;
+  margin-bottom: 0.2rem;
+}
+
+.suit-name {
+  font-size: 0.8rem;
+}
+
+.selected-card-display {
+  text-align: center;
+  margin: 2rem 0;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+#selected-card-info {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+#selected-card-info span {
+  margin: 0 0.5rem;
+}
+
+.perform-button {
+  width: 100%;
+  padding: 1rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.perform-button:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.perform-button:not(:disabled):hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+}
+
+.perform-button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+/* ===== NUMBERS ROUTINE SCREEN ===== */
+.numbers-routine-container {
+  padding: 10px 20px 20px 20px;
+  background: var(--background-color);
+  color: var(--text-primary);
+  min-height: 100vh;
+  position: relative;
+}
+
+.numbers-content {
+  max-width: 500px;
+  margin: 1rem auto;
+  padding: 0 1rem;
+}
+
+.numbers-section {
+  margin-bottom: 2rem;
+}
+
+.numbers-section h3 {
+  text-align: center;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.numbers-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.number-button {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  aspect-ratio: 1;
+}
+
+.number-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.number-button.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.selected-number-display {
+  text-align: center;
+  margin: 2rem 0;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+#selected-number-info {
+  font-size: 2rem;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+#selected-number-info span {
+  margin: 0 0.25rem;
+}
+
+/* ===== STAR SIGNS ROUTINE SCREEN ===== */
+.star-signs-routine-container {
+  padding: 10px 20px 20px 20px;
+  background: var(--background-color);
+  color: var(--text-primary);
+  min-height: 100vh;
+  position: relative;
+}
+
+.star-signs-content {
+  max-width: 600px;
+  margin: 1rem auto;
+  padding: 0 1rem;
+}
+
+.star-signs-section {
+  margin-bottom: 2rem;
+}
+
+.star-signs-section h3 {
+  text-align: center;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.star-signs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.star-sign-button {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+}
+
+.star-sign-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.star-sign-button.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.selected-sign-display {
+  text-align: center;
+  margin: 2rem 0;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+#selected-sign-info {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+#selected-sign {
+  color: var(--primary-color);
+}
+
+/* Responsive adjustments for routine screens */
+@media (max-width: 768px) {
+  .card-values-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.6rem;
+  }
+  
+  .card-suits-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+  }
+  
+  .numbers-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+  }
+  
+  .star-signs-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .card-values-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+  }
+  
+  .card-suits-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+  }
+  
+  .suit-button {
+    min-height: 60px;
+    padding: 0.6rem 0.3rem;
+  }
+  
+  .suit-icon {
+    font-size: 1.1rem;
+    margin-bottom: 0.1rem;
+  }
+  
+  .suit-name {
+    font-size: 0.7rem;
+  }
+  
+  .numbers-grid {
+    gap: 0.4rem;
+  }
+  
+  .star-signs-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

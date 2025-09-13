@@ -1,10 +1,14 @@
 import { navigateToScreen } from './navigation.js';
-import { getCurrentScreen } from './state.js';
+import { getCurrentScreen, getRoutineType } from './state.js';
 import { handleLogin } from './screens/login.js';
 import { handleSignup } from './screens/signup.js';
 import { setupSettingsEventListeners } from './screens/settings.js';
 import { setupVoiceCloneEventListeners } from './screens/voice-clone.js';
 import { setupRoutineSelectionEventListeners } from './screens/routine-selection.js';
+import { setupTextInputRoutineEventListeners } from './screens/text-input-routine.js';
+import { setupCardsRoutineEventListeners } from './screens/cards-routine.js';
+import { setupNumbersRoutineEventListeners } from './screens/numbers-routine.js';
+import { setupStarSignsRoutineEventListeners } from './screens/star-signs-routine.js';
 
 export function setupEventListeners() {
   setupNavigationListeners();
@@ -13,12 +17,21 @@ export function setupEventListeners() {
   setupInputAnimations();
   
   // Setup screen-specific listeners
-  if (getCurrentScreen() === 'settings') {
+  const currentScreen = getCurrentScreen();
+  if (currentScreen === 'settings') {
     setupSettingsEventListeners();
-  } else if (getCurrentScreen() === 'voice-clone') {
+  } else if (currentScreen === 'voice-clone') {
     setupVoiceCloneEventListeners();
-  } else if (getCurrentScreen() === 'routine-selection') {
+  } else if (currentScreen === 'routine-selection') {
     setupRoutineSelectionEventListeners();
+  } else if (currentScreen === 'text-input-routine') {
+    setupTextInputRoutineEventListeners(getRoutineType());
+  } else if (currentScreen === 'cards-routine') {
+    setupCardsRoutineEventListeners();
+  } else if (currentScreen === 'numbers-routine') {
+    setupNumbersRoutineEventListeners();
+  } else if (currentScreen === 'star-signs-routine') {
+    setupStarSignsRoutineEventListeners();
   }
 }
 
@@ -29,7 +42,8 @@ function setupNavigationListeners() {
     { id: 'logout-btn', action: () => navigateToScreen('login') },
     { id: 'test-btn', action: () => navigateToScreen('home') },
     { id: 'back-to-home', action: () => navigateToScreen('home') },
-    { id: 'back-to-settings', action: () => navigateToScreen('settings') }
+    { id: 'back-to-settings', action: () => navigateToScreen('settings') },
+    { id: 'back-to-routine-selection', action: () => navigateToScreen('routine-selection') }
   ];
   navigationButtons.forEach(({ id, action }) => {
     const button = document.getElementById(id);

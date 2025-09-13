@@ -48,7 +48,7 @@ export function setupRoutineSelectionEventListeners() {
     const button = document.getElementById(buttonId);
     if (button) {
       button.addEventListener('click', () => {
-        const routineName = buttonId.replace('-btn', '').toUpperCase();
+        const routineName = buttonId.replace('-btn', '');
         handleRoutineSelection(routineName);
       });
     }
@@ -56,6 +56,28 @@ export function setupRoutineSelectionEventListeners() {
 }
 
 function handleRoutineSelection(routineName) {
-  // For now, show an alert. This can be expanded later to handle each routine
-  alert(`${routineName} routine selected! Coming soon...`);
+  // Import navigateToScreen dynamically to avoid circular dependency
+  import('../navigation.js').then(({ navigateToScreen }) => {
+    // Navigate to the appropriate routine screen
+    switch(routineName) {
+      case 'cards':
+        navigateToScreen('cards-routine');
+        break;
+      case 'nums':
+        navigateToScreen('numbers-routine');
+        break;
+      case 'star':
+        navigateToScreen('star-signs-routine');
+        break;
+      case 'phobias':
+      case 'years':
+      case 'names':
+      case 'movies':
+      case 'custom':
+        navigateToScreen('text-input-routine', routineName);
+        break;
+      default:
+        alert(`${routineName.toUpperCase()} routine coming soon...`);
+    }
+  });
 }

@@ -1,4 +1,4 @@
-import { getCurrentScreen, setCurrentScreen } from './state.js';
+import { getCurrentScreen, setCurrentScreen, getRoutineType, setRoutineType } from './state.js';
 import { renderLoginScreen } from './screens/login.js';
 import { renderSignupScreen } from './screens/signup.js';
 import { renderHomeScreen } from './screens/home.js';
@@ -6,6 +6,10 @@ import { renderTokenScreen } from './screens/tokens.js';
 import { renderSettingsScreen } from './screens/settings.js';
 import { renderVoiceCloneScreen } from './screens/voice-clone.js';
 import { renderRoutineSelectionScreen } from './screens/routine-selection.js';
+import { renderTextInputRoutineScreen } from './screens/text-input-routine.js';
+import { renderCardsRoutineScreen } from './screens/cards-routine.js';
+import { renderNumbersRoutineScreen } from './screens/numbers-routine.js';
+import { renderStarSignsRoutineScreen } from './screens/star-signs-routine.js';
 import { setupEventListeners } from './events.js';
 
 export function renderScreen() {
@@ -32,13 +36,30 @@ export function renderScreen() {
     case 'routine-selection':
       app.innerHTML = renderRoutineSelectionScreen();
       break;
+    case 'text-input-routine':
+      app.innerHTML = renderTextInputRoutineScreen(getRoutineType());
+      break;
+    case 'cards-routine':
+      app.innerHTML = renderCardsRoutineScreen();
+      break;
+    case 'numbers-routine':
+      app.innerHTML = renderNumbersRoutineScreen();
+      break;
+    case 'star-signs-routine':
+      app.innerHTML = renderStarSignsRoutineScreen();
+      break;
   }
   setupEventListeners();
   // Apply scroll policy immediately on render
   applyScrollPolicy(getCurrentScreen());
 }
 
-export function navigateToScreen(screen) { performScreenTransition(screen); }
+export function navigateToScreen(screen, routineType = null) { 
+  if (routineType) {
+    setRoutineType(routineType);
+  }
+  performScreenTransition(screen); 
+}
 
 function performScreenTransition(targetScreen) {
   const currentContainer = getCurrentScreenContainer();
@@ -68,6 +89,10 @@ function getCurrentScreenContainer() {
   if (['login','signup'].includes(current)) return document.getElementById('auth-card');
   if (['home','tokens','settings','voice-clone'].includes(current)) return document.querySelector('.home-container, .tokens-page, .settings-container, .voice-clone-container');
   if (current === 'routine-selection') return document.querySelector('.routine-selection-container');
+  if (current === 'text-input-routine') return document.querySelector('.text-input-routine-container');
+  if (current === 'cards-routine') return document.querySelector('.cards-routine-container');
+  if (current === 'numbers-routine') return document.querySelector('.numbers-routine-container');
+  if (current === 'star-signs-routine') return document.querySelector('.star-signs-routine-container');
   return null;
 }
 
@@ -77,7 +102,7 @@ function applyScrollPolicy(screen) {
   const lock = () => { body.classList.add('no-scroll'); html.classList.add('no-scroll'); body.classList.remove('scroll-enabled'); };
   const unlock = () => { body.classList.remove('no-scroll'); html.classList.remove('no-scroll'); };
   // screens that should be scrollable
-  const scrollable = ['settings', 'voice-clone', 'routine-selection'];
+  const scrollable = ['settings', 'voice-clone', 'routine-selection', 'text-input-routine', 'cards-routine', 'numbers-routine', 'star-signs-routine'];
   if (scrollable.includes(screen)) {
     unlock();
     body.classList.add('scroll-enabled');
@@ -93,5 +118,9 @@ function getNewScreenContainer(screen) {
   if (screen === 'settings') return document.querySelector('.settings-container');
   if (screen === 'voice-clone') return document.querySelector('.voice-clone-container');
   if (screen === 'routine-selection') return document.querySelector('.routine-selection-container');
+  if (screen === 'text-input-routine') return document.querySelector('.text-input-routine-container');
+  if (screen === 'cards-routine') return document.querySelector('.cards-routine-container');
+  if (screen === 'numbers-routine') return document.querySelector('.numbers-routine-container');
+  if (screen === 'star-signs-routine') return document.querySelector('.star-signs-routine-container');
   return null;
 }
