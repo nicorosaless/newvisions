@@ -40,27 +40,37 @@ export function renderSignupScreen() {
     </div>`;
 }
 
+import { registerUser } from '../api.ts';
+import { navigateToScreen } from '../navigation.js';
+
 export function handleSignup(e) {
   e.preventDefault();
   const formData = new FormData(e.target);
-  const userData = {
+  const payload = {
     username: formData.get('username'),
     email: formData.get('email'),
     password: formData.get('password'),
     activationCode: formData.get('activationCode')
   };
-  performSignup(userData);
+  performSignup(payload);
 }
 
-function performSignup(userData) {
+async function performSignup(userData) {
   const submitBtn = document.querySelector('#signup-form button[type="submit"]');
   if (!submitBtn) return;
   const originalText = submitBtn.textContent;
   submitBtn.textContent = 'Creating Account...';
   submitBtn.disabled = true;
-  setTimeout(() => {
+  try {
+    await registerUser(userData);
+    alert('Account created successfully! Please login.');
+    navigateToScreen('login');
+  } catch (err) {
+    console.error(err);
+    const msg = err?.details?.detail || err.message || 'Registration failed';
+    alert(msg);
+  } finally {
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
-    alert('Signup functionality will be connected to backend later!');
-  }, 1500);
+  }
 }

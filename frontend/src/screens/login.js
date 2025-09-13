@@ -1,4 +1,5 @@
 import { navigateToScreen } from '../navigation.js';
+import { loginUser } from '../api.ts';
 
 export function renderLoginScreen() {
   return `
@@ -45,15 +46,21 @@ export function handleLogin(e) {
   performLogin(credentials);
 }
 
-function performLogin(credentials) {
+async function performLogin(credentials) {
   const submitBtn = document.querySelector('#login-form button[type="submit"]');
   if (!submitBtn) return;
   const originalText = submitBtn.textContent;
   submitBtn.textContent = 'Signing In...';
   submitBtn.disabled = true;
-  setTimeout(() => {
+  try {
+    await loginUser(credentials);
+    navigateToScreen('home');
+  } catch (err) {
+    console.error(err);
+    const msg = err?.details?.detail || err.message || 'Login failed';
+    alert(msg);
+  } finally {
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
-    navigateToScreen('home');
-  }, 1500);
+  }
 }
