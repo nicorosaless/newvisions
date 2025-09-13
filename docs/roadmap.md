@@ -1,31 +1,39 @@
 # Roadmap Backend (Servicios y Pipeline Interno)
 
-Última actualización: 13-09-2025 (Migración a Voice Pool persistente, sin clon efímero)
+Última actualización: 13-09-2025 (Alineación diseño pool vs implementación actual)
 
 ## 1. Estado Actual
-- ✅ Registro (`/auth/register`) y Login (`/auth/login`) (sin JWT todavía).
-- ✅ Generación de pensamiento (`/generate-thought`) y audio (`/generate-audio`).
-- ✅ Scripts de mantenimiento DB y generación de activation codes.
-- ✅ Estructura modular base (`backend_structure.md`).
-- ✅ Persistencia y normalización de `settings` (`GET/PUT /users/{id}/settings`).
-- ✅ Endpoint Perform (pool): rutina → prompt → texto → estrategia de voz (provider voice_id persistente | pooled_voice_id | sample local | placeholder | TTS genérico) + actualización `charCount`.
-- ❌ Clonación efímera eliminada: sustituida por pool persistente LRU (capacidad = límite tier 10) para evitar costo y latencia repetida.
-- ✅ Servicio placeholder y sample de usuario (si no hay clon) siguen como fallback.
-- ✅ Prompt builder integrado en /perform (usa `build_routine_prompt` + `generate_from_prompt`). (No testeado automatizado)
-- ⚠️ No hay JWT ni contexto autenticado.
-- ✅ Límite provisional de `charCount` = 4000 aplicado en /perform (pre y post generación). (No tests)
-- ✅ Frontend: integración automática en `voice-recording.js` llamando `/perform` y mostrando tarjeta dinámica con reproductor.
-- ✅ Voice clone efímero implementado (usa muestra subida del usuario como base para crear un clon temporal antes de sintetizar).
-- ⚠️ Clonación asíncrona / jobs en background NO implementada (el proceso es sincrónico y bloqueante por ahora).
+- ✅ Registro (`/auth/register`) y Login (`/auth/login`) (sin JWT todavía)
+- ✅ Generación de pensamiento (`/generate-thought`) y audio (`/generate-audio`)
+- ✅ Scripts de mantenimiento DB y generación de activation codes
+- ✅ Estructura modular base (`backend_structure.md`)
+- ✅ Persistencia y normalización de `settings` (`GET/PUT /users/{id}/settings`)
+- ✅ Endpoint `/perform` con cadena de selección: provider voice_clone_id → pooled_voice_id (hash de sample) → sample crudo → TTS genérico
+- ✅ Eliminado placeholder estático y clon efímero por request
+- ⚠️ Implementación pool actual basada en `sample_hash` compartido, NO en un `voice_clone_id` persistente 1:1 por usuario como define `docs/pool.md`
+- ⚠️ No existe aún creación única de `voice_clone_id` en upload; se crean voces solo cuando se fuerza creación dentro de perform (lazy + por hash)
+- ⚠️ No hay JWT ni contexto autenticado
+- ✅ Límite provisional `charCount` = 4000 (enforced) (sin test dedicado)
+- ⚠️ Métricas/structured logging mínimos (solo prints)
+- ⚠️ Sin tests específicos de pool (reuse / evict)
 
 ## 1.1 Problema Actual (Resumen Crítico)
-La solución actual de clonación de voz funciona pero presenta varias limitaciones que impactan costo, latencia, calidad y robustez:
+La implementación difiere del diseño objetivo (pool por `voice_clone_id` persistente por usuario). Actualmente:
+1. El pool indexa por `sample_hash` y almacena `voice_id` reutilizable multi-usuario si la muestra coincide, mientras que el diseño objetivo exige un `voice_clone_id` único y estable por usuario (1:1).
+2. `/perform` intenta primero `voice_clone_id` (campo user) pero no hay flujo que lo cree tras upload; la mayoría de usuarios tendrán `None` y caerán en lógica de pool por sample.
+3. `create_persistent_voice_clone` se invoca desde perform cuando no hay audio clon reutilizable; esto crea voz y la registra en pool pero NO persiste `voice_clone_id` en el documento usuario.
+4. No existe mecanismo de promoción: después de crear un clon persistente, el usuario debería tener su `voice_clone_id` para saltar directamente al paso provider en usos futuros.
+5. Evicción LRU elimina el doc local sin borrar la voz remota ni actualizar a los usuarios afectados.
+6. Fallback a sample crudo sigue presente; produce audio que no refleja el texto generado.
+7. No hay normalización previa → variaciones menores generan hashes distintos y crean clones redundantes.
 
 **Técnico / Arquitectura**
-- Pool persistente LRU implementado (Mongo) pero sin normalización previa del audio → posibles hashes distintos por variaciones mínimas.
-- No hay cola ni job async; creación de nueva voz del pool sigue siendo bloqueante.
-- Necesario job de reconciliación para asegurar que no queden voces huérfanas al expulsar LRU.
-- Falta de métricas detalladas (create_ms, synth_ms) para medir impacto del pool vs baseline.
+- Pool actual: hash-based multi-usuario; diseño objetivo: per-user voice id estable + pool solo gestiona “calentamiento” (prioridad) no identidad.
+- Sin normalización previa del audio (hash inestable ante micro cambios).
+- Creación lazily en perform, no en upload (sube latencia primer uso).
+- Falta persistencia automática de `voice_clone_id` en `users` tras crear la voz.
+- No se marca en el pool la política de evicción para borrado remoto diferido.
+- No hay métricas de reuse/evict/create.
 
 **Calidad de Voz / Datos**
 - Solo se usa una muestra (30–60s) sin validaciones de SNR, silencio o clipping → la calidad del clon puede ser inconsistente.
@@ -38,8 +46,8 @@ La solución actual de clonación de voz funciona pero presenta varias limitacio
 - No se aplican rate limits internos → un usuario podría forzar rotaciones rápidas del pool.
 
 **Fallback Chain**
-- Orden actual: provider voice_clone_id → pooled_voice_id → sample crudo → placeholder → TTS genérico.
-- Riesgo: sample crudo aún reproduce audio antiguo (no re-síntesis). Considerar eliminar este escalón para consistencia texto↔audio.
+- Objetivo: provider voice_clone_id → pooled (prioridad MRU) → TTS genérico.
+- Actual: provider → pooled (hash sample) → sample crudo → TTS. (Necesario eliminar sample crudo o hacerlo opt-in debug)
 
 **Experiencia de Usuario**
 - `voiceSource` expone la ruta tomada pero el frontend no distingue aún para avisar “usando voz temporal” vs “reproduciendo muestra directa”.
@@ -70,15 +78,17 @@ La solución actual de clonación de voz funciona pero presenta varias limitacio
 | Sin métricas | Difícil optimización | Media |
 | Falta de tests | Regressions silenciosas | Media |
 
-## 1.4 Plan de Mitigación Inmediata
-1. Normalización + hashing estable previo a crear voz del pool (reduce clones redundantes).
-2. Eliminar fallback a sample crudo o marcarlo experimental (config toggle) para coherencia.
-3. Implementar JWT + rate limit (token bucket) antes de abrir a volumen > piloto.
-4. Logging estructurado: métricas `pool_acquire_ms`, `pool_create_ms`, `pool_reuse_count`, `fallback_reason`.
-5. Endpoint `/users/{id}/voice/meta` (estado: none|pooled|provider) para UX transparente.
-6. Test integración pool: llenar hasta capacity, forzar evicción, asegurar `<= capacity`.
-7. Reconciliación provider: listar voces y eliminar las que no estén en la colección local.
-8. Rate limit de creación de nuevas voces por usuario (ej: 1 cada 10 min) para evitar thrash.
+## 1.4 Plan de Mitigación Inmediata (Revisado)
+1. Crear flujo de clon estable en upload: si user no tiene `voice_clone_id`, crear voz → guardar en `users.voice_clone_id` (modo eager) y opcionalmente insertar en pool (MRU).
+2. Refactor pool para usar únicamente `voice_id` (per-user) como key; remover `sample_hash` y `users[]` multi-binding.
+3. Eliminar fallback a sample crudo (behind feature flag `ALLOW_SAMPLE_FALLBACK=false`).
+4. Añadir normalización previa (loudness + trim silencio) antes de crear clon para consistencia y mejor calidad.
+5. Persistir métricas: `pool_reuse_total`, `pool_insert_total`, `pool_evictions_total`, `pool_current_size`.
+6. Guardar en doc de evicción (o log) la `evicted_voice_id` y programar borrado remoto async (job/cron).
+7. Endpoint `GET /users/{id}/voice/meta` para exponer `state: none|provider|pooled`.
+8. Tests: (a) upload→clon→perform reuse, (b) llenar pool y evict, (c) desactivar pool, (d) fallback TTS.
+9. Añadir JWT + rate limiting antes de permitir creación de clon.
+10. Instrumentar logs estructurados JSON (one-line) por acquire/evict/create.
 
 ## 1.5 Futuro Cercano (Opciones de Evolución)
 - Persistencia controlada: permitir 1 voice oficial por usuario (re-entrenable) + efímero solo como backup.
@@ -86,8 +96,8 @@ La solución actual de clonación de voz funciona pero presenta varias limitacio
 - Ajustes dinámicos: mapear `stability`, `similarity`, `style` desde settings, exponer slider en UI.
 - Streaming parcial de audio mientras se genera (si API lo soporta) para reducir TTFP percibido.
 
-## 2. Voice Pool Manager (Nuevo Diseño)
-Objetivo: Maximizar reutilización de hasta N (capacidad limitada por tier ElevenLabs, actualmente 10) voice IDs persistentes sin crear un clon por cada perform.
+## 2. Voice Pool Manager (Diseño Objetivo vs Actual)
+Objetivo: Ventana LRU de priorización (no identidad) sobre `voice_clone_id` per-user ya existentes. La identidad de la voz vive en el documento de usuario; el pool solo conserva “calientes” hasta `capacity`.
 
 ### 2.1 Concepto
 - Pool LRU en Mongo (`voice_pool`): cada doc representa un voice_id persistente + hash de la muestra base normalizada.
@@ -96,13 +106,15 @@ Objetivo: Maximizar reutilización de hasta N (capacidad limitada por tier Eleve
 - Evicción: cuando `count >= capacity`, se elimina el LRU (menor `last_used_at`).
 - TTL inactividad: voces no usadas en X minutos se purgan (limpieza periódica / on-demand).
 
-### 2.2 Flujo /perform revisado
-1. Recuperar muestra del usuario (si existe).
-2. Intentar adquirir voz del pool (`acquire_voice`).
-  - Si retorna voice_id → sintetizar directamente.
-  - Si retorna None y capacidad no saturada → crear voz persistente, luego `register_new_voice`.
-  - Si retorna None y capacidad saturada → ya se expulsó LRU, crear nueva y registrar.
-3. Si falla creación/provider → sample crudo → placeholder → TTS genérico.
+### 2.2 Flujo /perform (diseño objetivo revisado)
+1. user.voice_clone_id existe? -> direct synth
+2. Pool.touch(voice_id) (actualiza last_used_at) si voice_id presente
+3. Si voice_id no está en pool:
+   - Si pool lleno -> evict LRU (log + programar delete remoto)
+   - Insert voice_id como MRU
+4. Synth con voice_id
+5. Si user no tiene voice_clone_id pero tiene sample y feature create-on-perform habilitada -> crear clon estable (una vez), asignar a user, reintentar pasos 2-4
+6. Si no hay sample/clon -> fallback TTS
 
 ### 2.3 Beneficios Esperados
 - Disminución de clonaciones repetidas (costos + latencia).
@@ -121,14 +133,18 @@ Objetivo: Maximizar reutilización de hasta N (capacidad limitada por tier Eleve
 - `ELEVEN_LABS_POOL_TTL_MINUTES` (int, default 30)
 - `ELEVEN_LABS_POOL_EVICTION_STRATEGY` (string: lru|ttl) – inicialmente lru
 
-### 2.6 Tareas (Backlog)
-- [ ] Normalización audio antes de hash (loudness, trim silencios)
-- [ ] Endpoint mantenimiento: `POST /admin/voice-pool/cleanup`
-- [ ] Métricas: `pool_reuse_count`, `pool_evictions_total`, `pool_create_total`
-- [ ] Guardar `provider_delete_status` al evictar (para auditoría)
-- [ ] Reconciliación programada (listar voices provider vs colección local)
-- [ ] Test integración simulado (llenar pool, evictar, reutilizar)
-- [ ] Toggle runtime (desactivar pool vía config sin reiniciar – requiere almacenar flag en DB o cache)
+### 2.6 Tareas (Backlog Actualizado)
+- [ ] Mover creación clon a upload voz (eager) y persistir `voice_clone_id`
+- [ ] Migrar pool: clave `voice_id`, eliminar `sample_hash` y lista `users`
+- [ ] Script migración: limpiar colección `voice_pool` antigua
+- [ ] Remove fallback sample crudo (flag deprecado)
+- [ ] Normalización audio (pipeline previo + hash post-normalización para idempotencia)
+- [ ] Métricas pool + endpoints observabilidad (`/admin/voice-pool/status`)
+- [ ] Eviction remoto diferido (cola jobs) + reconciliación programada
+- [ ] Tests end-to-end pool (reuse, evict, reinserción)
+- [ ] Endpoint `GET /users/{id}/voice/meta`
+- [ ] JWT + rate limit creaciones
+- [ ] Feature flag `POOL_ENABLED` runtime (cache / Redis)
 
 ### 2.7 Futuras Optimizaciones
 - Estrategia híbrida LRU+LFU (score = recency * frecuencia).
@@ -141,13 +157,13 @@ Objetivo: Maximizar reutilización de hasta N (capacidad limitada por tier Eleve
 - ⚠️ Testing automático pendiente (unit / integration) especialmente para Perform y migración settings.
 
 ## 2. Objetivos de Corto Plazo (Backend / Frontend Inmediatos)
-1. Refrescar créditos (charCount) en frontend tras `/perform` (actualizar UI de tokens / home).
-2. (COMPLETADO) Endpoint `POST /users/{id}/voice` subida & validación tamaño; almacena `recordedVoice`.
-3. Helper `with_temp_voice_clone` → Perform v2.
-4. Migrar a JWT (emisión y dependencia `current_user`).
-5. Tests mínimos (perform: límite 4000, rutina desconocida, vacío; settings normalización; meta endpoint).
-6. Métricas + logging estructurado (latency, chars_used, errores).
-7. Validación manual de calidad de prompts y ajustes.
+1. Crear flujo creación clon en upload + persistir `voice_clone_id`
+2. Refactor pool a per-user voice_id LRU (sin sample_hash)
+3. Remover fallback sample crudo en `/perform`
+4. Añadir métricas pool y logging estructurado
+5. JWT + dependencia usuario + rate limiting creación
+6. Tests básicos límite char y pool (reuse/evict)
+7. Endpoint `voice/meta` para estado voice
 
 ## 3. Backlog Secuenciado (Actualizado)
 | 2 | Voice Pool (LRU) | Persistencia hasta capacity | Upload Voice |
@@ -238,19 +254,19 @@ Objetivo: Maximizar reutilización de hasta N (capacidad limitada por tier Eleve
 - `chars_generated_total`
 
 ## 8. Checklist Resumido (Backend + Integraciones)
-- [x] Perform v1 (sin clon efímero) implementado
-- [x] charCount update (incremento simple)
-- [x] Placeholder clone (archivo estático `cloningvoice.mp3` si existe)
-- [x] Límite charCount (4000) con enforcement (no testeado)
-- [x] Prompt builder integrado (no testeado)
-- [x] Upload voice endpoint (/users/{id}/voice) + frontend integración botón "Generate Voice Clone" (guarda base64)
-- [x] Ephemeral clone helper
-- [x] Perform v2 (con clon efímero + cleanup inmediato)
-- [ ] JWT emit / verify
-- [ ] Dependency `current_user`
-- [ ] Logging estructurado + métricas
-- [ ] Tests mínimos (perform / settings / límites)
-- [ ] Refresco créditos frontend
+- [x] `/perform` básico con pool hash-based
+- [x] Límite charCount (4000) enforcement
+- [x] Upload voice endpoint (guarda sample MP3)
+- [x] Eliminado placeholder estático
+- [ ] Creación clon estable en upload
+- [ ] Persistir `voice_clone_id` en user tras creación
+- [ ] Refactor pool per-user voice_id
+- [ ] Remover fallback sample crudo (flag)
+- [ ] Métricas & logging estructurado pool
+- [ ] JWT + dependencia usuario
+- [ ] Rate limiting creación clon
+- [ ] Tests pool (reuse/evict) + char limit + meta endpoint
+- [ ] Endpoint `voice/meta`
 
 ## 9. Notas Futuras / Testing Pendiente
 - Validar manualmente /perform con distintos `routine_type` (edge: desconocido → error esperado 400 si aplicamos validación futura).
@@ -263,4 +279,4 @@ Objetivo: Maximizar reutilización de hasta N (capacidad limitada por tier Eleve
 
 ---
 
-Este roadmap sirve como guía incremental hacia un MVP con voz personalizada. IMPORTANTE: La parte de clon real de voz y pruebas automatizadas sigue PENDIENTE; el servicio actual utiliza sólo un placeholder estático para test.
+Este roadmap refleja la brecha entre implementación actual (hash-based pool + ausencia `voice_clone_id` persistente) y el diseño objetivo (per-user voice id + LRU de priorización). La prioridad inmediata es alinear creación y persistencia del clon con la especificación en `docs/pool.md`.

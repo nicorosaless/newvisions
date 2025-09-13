@@ -412,7 +412,13 @@ def upload_user_voice(user_id: str, payload: VoiceUploadRequest):
                 "updated_at": datetime.utcnow()
             }}
         )
-        return {"status": "ok", "bytes": len(mp3_bytes), "hash": voice_hash, "duration": dur, "dedup": False, "transcoded": transcoded}
+        # Crear clon persistente si no existe y meterlo al pool (lazy errors no bloquean respuesta)
+        try:
+            clone_id = create_persistent_voice_clone(str(oid), mp3_bytes, db=db)
+        except Exception as e:
+            print({"event": "voice_clone_error", "stage": "post_upload_create", "error": str(e)})
+            clone_id = None
+        return {"status": "ok", "bytes": len(mp3_bytes), "hash": voice_hash, "duration": dur, "dedup": False, "transcoded": transcoded, "voice_clone_id": clone_id}
     finally:
         client.close()
 
@@ -469,63 +475,31 @@ def perform(payload: PerformRequest):
     # 2. Else try pooled persistent voice (reuse or create if capacity has room / eviction performed).
     # 3. Else fallback to user sample raw / placeholder / generic TTS.
         voice_source = None
-        cloned_audio_bytes = None
+        # Requerimos voice_clone_id; si falta intentar crear (si hay sample), si no error
         provider_id = get_user_voice_id(payload.user_id)
-        if provider_id:
-            cloned_audio_bytes = synthesize_with_user_voice(text, payload.user_id, db=db)
-            voice_source = "provider_voice_id" if cloned_audio_bytes else None
+        if not provider_id:
+            sample_bytes = fetch_user_voice_sample(payload.user_id)
+            if not sample_bytes:
+                raise HTTPException(status_code=409, detail="User has no persistent cloned voice and no sample uploaded")
+            created_id = create_persistent_voice_clone(payload.user_id, sample_bytes, db=db)
+            if not created_id:
+                raise HTTPException(status_code=502, detail="Failed to create persistent voice clone")
+            provider_id = created_id
+        cloned_audio_bytes = synthesize_with_user_voice(text, payload.user_id, db=db)
         if not cloned_audio_bytes:
-            sample = fetch_user_voice_sample(payload.user_id)
-            if sample:
-                # Attempt pool acquisition / creation via synthesize_with_user_voice (which tries pool internally)
-                cloned_audio_bytes = synthesize_with_user_voice(text, payload.user_id, db=db, user_sample=sample)
-                if cloned_audio_bytes:
-                    # Determine if came from pool by checking voice_source set inside logs; we classify heuristically here
-                    voice_source = voice_source or "pooled_or_sample"
-                if not cloned_audio_bytes and settings.elevenlabs_pool_enabled:
-                    # Create persistent clone then retry
-                    vid = create_persistent_voice_clone(payload.user_id, sample, db=db)
-                    if vid:
-                        cloned_audio_bytes = synthesize_with_user_voice(text, payload.user_id, db=db, user_sample=sample)
-                        if cloned_audio_bytes:
-                            voice_source = "pooled_voice_id"
-        if not cloned_audio_bytes:
-            cloned_audio_bytes = synthesize_with_user_voice(text, payload.user_id, db=db)
-            if cloned_audio_bytes and not voice_source:
-                voice_source = "user_sample"
-        if cloned_audio_bytes:
-            import base64, hashlib
-            audio_b64 = base64.b64encode(cloned_audio_bytes).decode('utf-8')
-            # Derive pseudo filename from hash for cache-busting consistency
-            h = hashlib.sha1(cloned_audio_bytes).hexdigest()[:10]
-            path = TMP_DIR / f"clone_{h}.mp3"
-            # Persist file for retrieval endpoint (optional; write once if missing)
-            if not path.exists():
-                try:
-                    path.write_bytes(cloned_audio_bytes)
-                except Exception:
-                    pass
-            if not voice_source:
-                voice_source = "user_or_placeholder"
-        else:
-            # Fallback generic synthesis
+            raise HTTPException(status_code=502, detail="Voice clone synthesis failed")
+        voice_source = "provider_voice_id"
+        import base64, hashlib
+        audio_b64 = base64.b64encode(cloned_audio_bytes).decode('utf-8')
+        h = hashlib.sha1(cloned_audio_bytes).hexdigest()[:10]
+        path = TMP_DIR / f"clone_{h}.mp3"
+        if not path.exists():
             try:
-                audio_b64, path = synthesize_and_save(text, TMP_DIR)
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
-            voice_source = "tts"
-
-        # Distinguish user vs placeholder by filename prefix
-        if voice_source in ("user_or_placeholder", "pooled_or_sample"):
-            try:
-                if get_user_voice_id(payload.user_id):
-                    voice_source = "provider_voice_id"
-                elif fetch_user_voice_sample(payload.user_id):
-                    voice_source = "pooled_voice_id" if voice_source == "pooled_or_sample" else "user_sample"
-                else:
-                    voice_source = "tts"  # ya no existe placeholder estático
+                path.write_bytes(cloned_audio_bytes)
             except Exception:
-                voice_source = "unknown"
+                pass
+
+    # Sin rutas alternativas: siempre provider_voice_id o error
 
         # Update charCount (simple increment already validated against limit)
         chars_used = len(text)

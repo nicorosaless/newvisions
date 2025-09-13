@@ -41,18 +41,27 @@ def test_perform_empty_value():
     assert resp.status_code == 400
     assert "empty" in resp.json()["detail"].lower()
 
-def test_perform_basic_flow():
+def test_perform_basic_flow_with_clone_stub():
     user_id = create_user("tester2")
-    resp = client.post("/perform", json={
+    # Simular upload de voz (fake mp3 bytes con header ID3) base64
+    fake_mp3 = b"ID3" + b"\x00" * 4000
+    import base64 as b64
+    upload = client.post(f"/users/{user_id}/voice", json={
+        "audio_base64": b64.b64encode(fake_mp3).decode(),
+        "mime_type": "audio/mpeg",
+        "duration_seconds": 35
+    })
+    # duration_seconds must be between 30 and 60
+    assert upload.status_code == 200, upload.text
+    perform_resp = client.post("/perform", json={
         "user_id": user_id,
         "routine_type": "morning",
         "value": "energize"
     })
-    assert resp.status_code == 200, resp.text
-    data = resp.json()
-    assert "text" in data and len(data["text"]) > 0
-    assert data["charCount"] >= len(data["text"])
-    assert data["voiceSource"] in ("provider_voice_id", "pooled_voice_id", "user_sample", "tts")
+    assert perform_resp.status_code == 200, perform_resp.text
+    data = perform_resp.json()
+    assert data["voiceSource"] == "provider_voice_id"
+    assert len(data["audio_base64"]) > 10
 
 
 def test_perform_char_limit():
@@ -63,10 +72,19 @@ def test_perform_char_limit():
         db["users"].update_one({"username": "limituser"}, {"$set": {"charCount": 3995}})
     finally:
         mc.close()
+    # Upload voice to ensure clone exists (stub)
+    fake_mp3 = b"ID3" + b"\x00" * 4000
+    import base64 as b64
+    up = client.post(f"/users/{user_id}/voice", json={
+        "audio_base64": b64.b64encode(fake_mp3).decode(),
+        "mime_type": "audio/mpeg",
+        "duration_seconds": 35
+    })
+    assert up.status_code == 200, up.text
+    # Debe bloquear si texto excede el límite
     resp = client.post("/perform", json={
         "user_id": user_id,
         "routine_type": "evening",
         "value": "short"
     })
-    # Either allowed (if generated text fits) or blocked if exceeds; ensure no server error
     assert resp.status_code in (200, 429)

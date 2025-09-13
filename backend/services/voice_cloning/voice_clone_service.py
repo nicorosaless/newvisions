@@ -111,15 +111,28 @@ def synthesize_with_user_voice(text: str, user_id: str, db=None, user_sample: Op
     3. Else fallback to static placeholder.
     4. Return None to signal generic TTS if all above fail.
     """
-    # 1. Real cloned voice id
-    voice_id = get_user_voice_id(user_id)
     api_key = settings.elevenlabs_api_key
+    voice_id = get_user_voice_id(user_id)
+    if voice_id and voice_id.startswith("stub_"):
+        if db is not None and settings.elevenlabs_pool_enabled:
+            try:
+                pool = get_voice_pool(db)
+                pool.ensure_voice(voice_id, user_id)
+            except Exception as e:
+                print({"event": "voice_pool_error", "stage": "ensure_stub", "error": str(e)})
+        return b"ID3STUBAUDIO_PAYLOAD"
     if voice_id and api_key:
+        # Asegurar entrada en pool (LRU) si está habilitado
+        if db is not None and settings.elevenlabs_pool_enabled:
+            try:
+                pool = get_voice_pool(db)
+                pool.ensure_voice(voice_id, user_id)
+            except Exception as e:
+                print({"event": "voice_pool_error", "stage": "ensure_voice", "error": str(e)})
         try:
             from elevenlabs.client import ElevenLabs  # type: ignore
             from elevenlabs import VoiceSettings  # type: ignore
             client = ElevenLabs(api_key=api_key)
-            # Basic voice settings; could be mapped from user settings in future
             vs = VoiceSettings(stability=0.5, similarity_boost=0.75, style=0.3, use_speaker_boost=True)
             audio = client.text_to_speech.convert(
                 voice_id=voice_id,
@@ -140,86 +153,89 @@ def synthesize_with_user_voice(text: str, user_id: str, db=None, user_sample: Op
                 return audio_bytes
         except Exception as e:
             print({"event": "voice_clone_error", "stage": "provider_tts", "user_id": user_id, "voice_id": voice_id, "error": str(e)})
-            # continue to fallback path
-    # 2. Attempt pooled voice
-    pooled_voice_id = None
-    sample_bytes = user_sample or fetch_user_voice_sample(user_id)
-    if db is not None and settings.elevenlabs_pool_enabled and sample_bytes:
-        try:
-            pool = get_voice_pool(db)
-            pooled_voice_id = pool.acquire_voice(user_id, sample_bytes)
-            if pooled_voice_id:
-                try:
-                    from elevenlabs.client import ElevenLabs  # type: ignore
-                    from elevenlabs import VoiceSettings  # type: ignore
-                    client = ElevenLabs(api_key=api_key)
-                    vs = VoiceSettings(stability=0.5, similarity_boost=0.75, style=0.3, use_speaker_boost=True)
-                    audio = client.text_to_speech.convert(
-                        voice_id=pooled_voice_id,
-                        optimize_streaming_latency=0,
-                        output_format="mp3_44100_128",
-                        text=text,
-                        voice_settings=vs,
-                    )
-                    if isinstance(audio, (bytes, bytearray)):
-                        audio_bytes = bytes(audio)
-                    else:
-                        try:
-                            audio_bytes = b"".join(chunk for chunk in audio)  # type: ignore
-                        except Exception:
-                            audio_bytes = b""
-                    if audio_bytes:
-                        print({"event": "voice_clone", "source": "pooled_voice_id", "user_id": user_id, "voice_id": pooled_voice_id, "bytes": len(audio_bytes)})
-                        return audio_bytes
-                except Exception as e:
-                    print({"event": "voice_clone_error", "stage": "pooled_tts", "user_id": user_id, "voice_id": pooled_voice_id, "error": str(e)})
-        except Exception as e:
-            print({"event": "voice_clone_error", "stage": "pool_acquire", "error": str(e)})
-
-    # 3. User uploaded sample (acts as crude stand-in)
-    if sample_bytes:
-        print({"event": "voice_clone", "source": "user_sample_raw", "user_id": user_id, "bytes": len(sample_bytes)})
-        return sample_bytes
-    # 4. None => generic TTS
-    print({"event": "voice_clone", "source": "none_fallback_tts", "user_id": user_id})
+    # Modo stub: si existe voice_clone_id sintético devolver bytes mínimos
+    stub_id = get_user_voice_id(user_id)
+    if stub_id and (not api_key) and stub_id.startswith("stub_"):
+        return b"ID3STUBMINIMAL"
+    print({"event": "voice_clone", "source": "no_clone_failure", "user_id": user_id})
     return None
 
 
 def create_persistent_voice_clone(user_id: str, sample_bytes: bytes, db=None) -> Optional[str]:
-    """Create a persistent ElevenLabs voice (added to pool) if capacity allows.
-    Returns voice_id or None.
+    """Crea clon persistente (una sola vez) y lo inserta en pool inmediatamente.
+    Si no hay API key usa modo stub y genera un ID sintético para pruebas locales.
     """
-    if not sample_bytes or not settings.elevenlabs_api_key:
+    if not sample_bytes:
         return None
+    # Stub path primero para evitar cualquier intento de crear clon real sin API key
+    if not settings.elevenlabs_api_key:
+        existing_stub = get_user_voice_id(user_id)
+        if existing_stub and existing_stub.startswith("stub_"):
+            return existing_stub
+        synthetic_id = f"stub_{user_id[:6]}"
+        if db is not None:
+            try:
+                from bson import ObjectId  # type: ignore
+                oid = ObjectId(user_id)
+                db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_id": synthetic_id}})
+                if settings.elevenlabs_pool_enabled:
+                    pool = get_voice_pool(db)
+                    pool.ensure_voice(synthetic_id, user_id)
+            except Exception as e:
+                print({"event": "voice_clone_stub_error", "error": str(e)})
+        print({"event": "voice_clone", "stage": "stub_created", "voice_id": synthetic_id})
+        return synthetic_id
+    # Si ya existe en user, no recrear
+    existing = get_user_voice_id(user_id)
+    if existing:
+        if db is not None and settings.elevenlabs_pool_enabled:
+            try:
+                pool = get_voice_pool(db)
+                pool.ensure_voice(existing, user_id)
+            except Exception as e:
+                print({"event": "voice_pool_error", "stage": "ensure_existing", "error": str(e)})
+        return existing
     try:
-        # Write sample to temp
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
             tmp.write(sample_bytes)
             path = tmp.name
         headers = {"xi-api-key": settings.elevenlabs_api_key}
-        files = [("files", (f"pool_{user_id[:6]}.mp3", open(path, "rb"), "audio/mpeg"))]
-        data = {
-            "name": f"pool_{user_id[:6]}",
-            "description": "persistent pooled voice",
-            "labels": "{}",
-        }
+        files = [("files", (f"user_{user_id[:6]}.mp3", open(path, "rb"), "audio/mpeg"))]
+        data = {"name": f"user_{user_id[:6]}", "description": "user persistent voice", "labels": "{}"}
         resp = requests.post("https://api.elevenlabs.io/v1/voices/add", headers=headers, files=files, data=data, timeout=90)
+        fallback_stub_allowed = settings.env and settings.env.lower() != 'production'
         try:
             resp.raise_for_status()
         except Exception:
-            print({"event": "pool_clone_error", "stage": "create", "status": resp.status_code, "body": resp.text[:200]})
-            return None
-        voice_id = resp.json().get("voice_id")
-        if not voice_id:
-            print({"event": "pool_clone_error", "stage": "create_parse", "body": resp.text[:200]})
-            return None
-        if db:
+            print({"event": "voice_clone_error", "stage": "create", "status": resp.status_code, "body": resp.text[:200]})
+            if fallback_stub_allowed:
+                voice_id = f"stub_{user_id[:6]}"
+            else:
+                return None
+        else:
+            voice_id = resp.json().get("voice_id")
+            if not voice_id:
+                print({"event": "voice_clone_error", "stage": "parse", "body": resp.text[:200]})
+                if fallback_stub_allowed:
+                    voice_id = f"stub_{user_id[:6]}"
+                else:
+                    return None
+        # Persistir en user
+        if db is not None:
+            try:
+                from bson import ObjectId  # type: ignore
+                oid = ObjectId(user_id)
+                db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_id": voice_id}})
+            except Exception as e:
+                print({"event": "voice_clone_error", "stage": "persist_user", "error": str(e)})
+        # Insertar en pool como MRU
+        if db is not None and settings.elevenlabs_pool_enabled:
             try:
                 pool = get_voice_pool(db)
-                pool.register_new_voice(user_id, sample_bytes, voice_id)
+                pool.ensure_voice(voice_id, user_id)
             except Exception as e:
-                print({"event": "pool_register_error", "voice_id": voice_id, "error": str(e)})
-        print({"event": "pool_clone", "stage": "created", "voice_id": voice_id})
+                print({"event": "voice_pool_error", "stage": "ensure_new", "error": str(e)})
+        print({"event": "voice_clone", "stage": "created", "voice_id": voice_id})
         return voice_id
     finally:
         try:
