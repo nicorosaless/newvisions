@@ -17,39 +17,58 @@ export function renderTokenScreen() {
 
   return `
   <div class="tokens-page">
-    <header class="tokens-topbar">
-      <button class="icon-btn" id="back-to-home" aria-label="Back">
-        <span class="icon-btn-chevron">←</span>
-      </button>
-      <h1 class="tokens-title">Usage</h1>
-      <div class="topbar-spacer"></div>
-    </header>
-    <main class="tokens-main" role="main">
-      <section class="progress-panel glass-panel">
-        <div class="progress-ring" aria-label="Usage ${usagePercentage}%">
-          <svg viewBox="0 0 120 120" class="progress-ring-svg">
-            <circle cx="60" cy="60" r="54" class="ring-background" />
-            <circle cx="60" cy="60" r="54" class="ring-progress" stroke-dasharray="${progressStroke} ${circumference}" />
-          </svg>
-          <div class="progress-center">
-            <span class="progress-value">${usagePercentage}<span class="progress-unit">%</span></span>
-            <span class="progress-label">used</span>
+    <div class="settings-container">
+      <div class="settings-header">
+        <button class="back-button" id="back-to-home" aria-label="Back">
+          <span class="back-arrow">←</span>
+        </button>
+        <h1>Usage</h1>
+        <div class="spacer"></div>
+      </div>
+
+      <div class="settings-content">
+        <!-- Usage Summary -->
+        <div class="settings-section">
+          <div class="settings-group">
+            <div class="progress-panel" style="padding: 1.25rem;">
+              <div class="progress-ring" aria-label="Usage ${usagePercentage}%">
+                <svg viewBox="0 0 120 120" class="progress-ring-svg">
+                  <circle cx="60" cy="60" r="54" class="ring-background" />
+                  <circle cx="60" cy="60" r="54" class="ring-progress" stroke-dasharray="${progressStroke} ${circumference}" />
+                </svg>
+                <div class="progress-center">
+                  <span class="progress-value">${usagePercentage}<span class="progress-unit">%</span></span>
+                  <span class="progress-label">used</span>
+                </div>
+              </div>
+              <div class="inline-stats">
+                <div class="inline-stat"><span class="stat-label subtle">Used</span><span class="stat-value">${usedTokens.toLocaleString()}</span></div>
+                <div class="inline-stat"><span class="stat-label subtle">Remaining</span><span class="stat-value">${remainingTokens.toLocaleString()}</span></div>
+                <div class="inline-stat"><span class="stat-label subtle">Total</span><span class="stat-value">${totalTokens.toLocaleString()}</span></div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="inline-stats">
-          <div class="inline-stat"><span class="stat-label subtle">Used</span><span class="stat-value">${usedTokens.toLocaleString()}</span></div>
-          <div class="inline-stat"><span class="stat-label subtle">Remaining</span><span class="stat-value">${remainingTokens.toLocaleString()}</span></div>
-          <div class="inline-stat"><span class="stat-label subtle">Total</span><span class="stat-value">${totalTokens.toLocaleString()}</span></div>
+
+        <!-- Billing / Reset Info -->
+        <div class="settings-section">
+          <h2 class="section-title">Billing</h2>
+          <div class="settings-group">
+            <div class="settings-item">
+              <div class="setting-row">
+                <div class="setting-label-group">
+                  <span class="setting-label">Next Reset</span>
+                  <span class="setting-description">Tokens refresh monthly at 00:00 UTC</span>
+                </div>
+                <div style="text-align:right; min-width:120px;">
+                  <div class="metric-number emphasis" style="margin:0;">${resetDateFormatted}</div>
+                  <div class="metric-trend subtle" style="margin:0;">${daysUntilReset} days left</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
-      <section class="metrics-grid">
-        <div class="metric-card glass-panel accent">
-          <div class="metric-label">Next Reset</div>
-          <div class="metric-number">${resetDateFormatted}</div>
-          <div class="metric-trend subtle">${daysUntilReset} days left</div>
-          <p class="reset-note-text">Tokens refresh automatically on the 1st of each month. Usage resets at 00:00 UTC.</p>
-        </div>
-      </section>
-    </main>
+      </div>
+    </div>
   </div>`;
 }

@@ -29,10 +29,8 @@ export function renderHomeScreen() {
             <div class="button-content"><span class="button-title">Settings</span></div>
             <div class="button-arrow">→</div>
           </button>
+          <button type="button" class="signout-button" id="logout-btn">Sign Out</button>
         </div>
-      </div>
-      <div class="home-footer">
-        <button type="button" class="signout-button" id="logout-btn">Sign Out</button>
       </div>
     </div>`;
 }

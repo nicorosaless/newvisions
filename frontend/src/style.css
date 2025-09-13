@@ -566,26 +566,27 @@ body:has(.home-container) #app {
 }
 
 .signout-button {
-  background: none;
+  background: #ac241d;
   border: none;
-  color: var(--text-secondary);
+  color: white;
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 0.75rem;
   border-radius: 12px;
   transition: all 0.2s ease;
-  opacity: 0.8;
+  width: fit-content;
+  align-self: center;
 }
 
 .signout-button:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
-  opacity: 1;
+  background: #E74C3C;
+  color: white;
 }
 
 .signout-button:active {
   transform: scale(0.98);
+  background: #CC3A2E;
 }
 
 /* Mobile optimizations for home screen */
@@ -1161,11 +1162,11 @@ body:has(.home-container) #app {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 1.5rem 1.25rem 2rem 1.25rem;
+  padding: 1.25rem 1.25rem 1.75rem 1.25rem;
 }
 
 .settings-section {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .section-title {
@@ -1185,7 +1186,7 @@ body:has(.home-container) #app {
   border: 1px solid var(--border-color);
   border-radius: 16px;
   overflow: hidden;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   box-shadow: 0 8px 32px var(--shadow-color);
 }
 
@@ -1250,7 +1251,7 @@ body:has(.home-container) #app {
 }
 
 .setting-row {
-  padding: 1rem 1.25rem;
+  padding: 0.875rem 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1322,16 +1323,28 @@ body:has(.home-container) #app {
   flex: 1;
   height: 4px;
   border-radius: 2px;
-  background: var(--surface-secondary);
   outline: none;
   appearance: none;
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 80px;
+  background: transparent; /* let pseudo-elements render track */
+}
+
+.setting-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.setting-slider::-webkit-slider-runnable-track {
+  background: var(--border-color);
+  height: 4px;
+  border-radius: 2px;
 }
 
 .setting-slider::-webkit-slider-thumb {
   appearance: none;
+  margin-top: -7px; /* center over 4px track with 18px thumb */
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -1341,10 +1354,16 @@ body:has(.home-container) #app {
   transition: all 0.2s ease;
 }
 
-.setting-slider::-webkit-slider-thumb:hover {
-  background: var(--primary-hover);
-  transform: scale(1.1);
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+.setting-slider:focus::-webkit-slider-runnable-track {
+  outline: none;
+}
+
+/* Firefox */
+.setting-slider::-moz-range-track {
+  background: var(--border-color);
+  height: 4px;
+  border-radius: 2px;
+  border: none;
 }
 
 .setting-slider::-moz-range-thumb {
@@ -1356,13 +1375,39 @@ body:has(.home-container) #app {
   border: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: all 0.2s ease;
+  margin-top: 0; /* Firefox centers automatically */
 }
 
+/* IE/Legacy Edge */
+.setting-slider::-ms-track {
+  height: 4px;
+  border-color: transparent;
+  color: transparent;
+  background: transparent;
+}
+.setting-slider::-ms-fill-lower,
+.setting-slider::-ms-fill-upper {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+.setting-slider::-ms-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  border: none;
+}
+
+/* Hover/active states */
+.setting-slider::-webkit-slider-thumb:hover,
 .setting-slider::-moz-range-thumb:hover {
   background: var(--primary-hover);
-  transform: scale(1.1);
 }
 
+.setting-slider::-webkit-slider-thumb:active,
+.setting-slider::-moz-range-thumb:active {
+  transform: scale(1.05);
+}
 .slider-value {
   font-size: 0.85rem;
   font-weight: 500;
@@ -1444,30 +1489,10 @@ body:has(.home-container) #app {
   }
   
   .setting-row {
-    padding: 1rem;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-    min-height: auto;
+    padding: 0.875rem 1rem;
   }
   
-  .setting-label-group {
-    text-align: left;
-  }
-  
-  .slider-container {
-    min-width: auto;
-    justify-content: space-between;
-  }
-  
-  .setting-select {
-    min-width: auto;
-    width: 100%;
-  }
-  
-  .toggle-container {
-    align-self: flex-end;
-  }
+  .settings-section { margin-bottom: 1.5rem; }
 }
 
 /* Voice Clone Screen Styles */
@@ -2472,6 +2497,7 @@ body:has(.home-container) #app {
     height: 20px;
   }
   
+   
   .recording-card {
     padding: 1.5rem 0;
   }

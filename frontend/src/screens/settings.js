@@ -161,4 +161,17 @@ export function setupSettingsEventListeners() {
       console.log(`Setting changed: ${input.id} = ${input.value || input.checked}`);
     });
   });
+
+  // Handle background sound toggle to enable/disable volume slider
+  const backgroundSoundToggle = document.getElementById('background-sound');
+  const backgroundVolumeSlider = document.getElementById('background-volume');
+  if (backgroundSoundToggle && backgroundVolumeSlider) {
+    const updateVolumeSlider = () => {
+      backgroundVolumeSlider.disabled = !backgroundSoundToggle.checked;
+      backgroundVolumeSlider.style.opacity = backgroundSoundToggle.checked ? '1' : '0.5';
+    };
+    backgroundSoundToggle.addEventListener('change', updateVolumeSlider);
+    // Initial state
+    updateVolumeSlider();
+  }
 }
