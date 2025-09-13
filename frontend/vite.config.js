@@ -1,7 +1,16 @@
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'fs'
+import path from 'path'
 
 export default defineConfig({
+  server: {
+    https: {
+      key: fs.readFileSync(path.resolve('./key.pem')),
+      cert: fs.readFileSync(path.resolve('./cert.pem'))
+    },
+    host: true
+  },
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
