@@ -1461,6 +1461,63 @@ body:has(.home-container) #app {
   background-color: var(--input-background);
 }
 
+.setting-text-input {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  width: 100%;
+  max-width: 250px;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.setting-text-input:hover {
+  border-color: var(--text-secondary);
+  background-color: var(--input-background);
+}
+
+.setting-text-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(5, 44, 86, 0.3);
+  background-color: var(--input-background);
+}
+
+.setting-text-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.setting-date-input {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  min-width: 150px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.setting-date-input:hover {
+  border-color: var(--text-secondary);
+  background-color: var(--input-background);
+}
+
+.setting-date-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(5, 44, 86, 0.3);
+  background-color: var(--input-background);
+}
+
 .slider-container {
   display: flex;
   align-items: center;

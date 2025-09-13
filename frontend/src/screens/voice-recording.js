@@ -41,8 +41,8 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                                 <div class="recording-main">
                                     <div class="recording-header">
                                         <div class="recording-info">
-                                                <h4 class="recording-title">Recording on 14 May 2025</h4>
-                                                <div class="recording-subtitle">14 May 2025</div>
+                                                <h4 class="recording-title" id="first-recording-title">Recording on 14 May 2025</h4>
+                                                <div class="recording-subtitle" id="first-recording-subtitle">14 May 2025</div>
                                         </div>
                                         <div class="recording-duration">2:34</div>
                                     </div>
@@ -197,7 +197,7 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
       <!-- Bottom Recording Footer (iOS-style) -->
       <footer class="recording-footer" aria-label="Record Controls">
         <div class="recording-footer-inner">
-          <button id="footer-record-btn" class="footer-record-btn" aria-pressed="false">
+          <button id="footer-record-btn" class="footer-record-btn" aria-pressed="false" style="border-radius: 50%;">
             <span class="footer-record-ring"></span>
             <span class="footer-record-dot"></span>
           </button>
@@ -210,6 +210,9 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
 }
 
 export function setupVoiceRecordingEventListeners() {
+  // Load custom recording details from cookies
+  loadCustomRecordingDetails();
+
   // Recording card expansion and playback  // Recording functionality
   const recordBtn = document.getElementById('record-btn');
   const pauseBtn = document.getElementById('pause-btn');
@@ -412,6 +415,45 @@ export function setupVoiceRecordingEventListeners() {
     // TODO: hook into actual recording flow when available
     console.log(isActive ? 'Start recording (UI only)' : 'Stop recording (UI only)');
   });
+}
+
+// Cookie utility functions for voice recording
+function getCookieValue(key) {
+  const name = key + '=';
+  const decodedCookie = decodeURIComponent(document.cookie);
+  const cookies = decodedCookie.split(';');
+  
+  for (let cookie of cookies) {
+    cookie = cookie.trim();
+    if (cookie.indexOf(name) === 0) {
+      return cookie.substring(name.length);
+    }
+  }
+  return null;
+}
+
+function loadCustomRecordingDetails() {
+  const titleElement = document.getElementById('first-recording-title');
+  const subtitleElement = document.getElementById('first-recording-subtitle');
+  
+  // Load custom voice note name
+  const customName = getCookieValue('voice-note-name');
+  if (customName && titleElement) {
+    titleElement.textContent = customName;
+  }
+  
+  // Load custom voice note date
+  const customDate = getCookieValue('voice-note-date');
+  if (customDate && subtitleElement) {
+    // Format the date to be more readable
+    const date = new Date(customDate);
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+    subtitleElement.textContent = formattedDate;
+  }
 }
 
 // (Real microphone capture can be wired later using MediaRecorder)

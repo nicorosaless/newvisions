@@ -125,6 +125,33 @@ export function renderSettingsScreen() {
             </div>
           </div>
         </div>
+
+        <!-- Performance Section -->
+        <div class="settings-section">
+          <h2 class="section-title">Performance</h2>
+          
+          <div class="settings-group">
+            <div class="settings-item">
+              <div class="setting-row">
+                <div class="setting-label-group">
+                  <span class="setting-label">Voice Note Name</span>
+                  <span class="setting-description">Custom title for your first recording</span>
+                </div>
+                <input type="text" id="voice-note-name" class="setting-text-input" placeholder="Enter voice note name" maxlength="50">
+              </div>
+            </div>
+
+            <div class="settings-item">
+              <div class="setting-row">
+                <div class="setting-label-group">
+                  <span class="setting-label">Voice Note Date</span>
+                  <span class="setting-description">Custom date for your first recording</span>
+                </div>
+                <input type="date" id="voice-note-date" class="setting-date-input">
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       
       <!-- Save Settings Button -->
@@ -137,6 +164,9 @@ export function renderSettingsScreen() {
 }
 
 export function setupSettingsEventListeners() {
+  // Load saved settings from cookies
+  loadSettingsFromCookies();
+
   // Handle slider value updates
   const sliders = ['voice-stability', 'voice-similarity', 'background-volume'];
   sliders.forEach(sliderId => {
@@ -161,12 +191,21 @@ export function setupSettingsEventListeners() {
   }
 
   // Handle settings changes (for future backend integration)
-  const settingsInputs = document.querySelectorAll('.setting-select, .setting-slider, .setting-toggle');
+  const settingsInputs = document.querySelectorAll('.setting-select, .setting-slider, .setting-toggle, .setting-text-input, .setting-date-input');
   settingsInputs.forEach(input => {
     input.addEventListener('change', () => {
+      // Save to cookies
+      saveSettingToCookie(input.id, input.value || input.checked);
       // TODO: Save settings to backend/localStorage
       console.log(`Setting changed: ${input.id} = ${input.value || input.checked}`);
     });
+    
+    // Also save on input for text fields
+    if (input.classList.contains('setting-text-input')) {
+      input.addEventListener('input', () => {
+        saveSettingToCookie(input.id, input.value);
+      });
+    }
   });
 
   // Handle background sound toggle to enable/disable volume slider
@@ -186,10 +225,95 @@ export function setupSettingsEventListeners() {
   const saveSettingsBtn = document.getElementById('save-settings');
   if (saveSettingsBtn) {
     saveSettingsBtn.addEventListener('click', () => {
+      // Save all current settings to cookies
+      saveAllSettingsToCookies();
       // TODO: Implement actual save functionality
       console.log('Saving settings...');
       // For now, just show a simple alert
       alert('Settings saved successfully!');
     });
   }
+}
+
+// Cookie utility functions
+function saveSettingToCookie(key, value) {
+  const expires = new Date();
+  expires.setFullYear(expires.getFullYear() + 1); // Cookie expires in 1 year
+  document.cookie = `${key}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+}
+
+function getSettingFromCookie(key) {
+  const name = key + '=';
+  const decodedCookie = decodeURIComponent(document.cookie);
+  const cookies = decodedCookie.split(';');
+  
+  for (let cookie of cookies) {
+    cookie = cookie.trim();
+    if (cookie.indexOf(name) === 0) {
+      return cookie.substring(name.length);
+    }
+  }
+  return null;
+}
+
+function loadSettingsFromCookies() {
+  // Load voice note name
+  const voiceNoteNameInput = document.getElementById('voice-note-name');
+  if (voiceNoteNameInput) {
+    const savedName = getSettingFromCookie('voice-note-name');
+    if (savedName) {
+      voiceNoteNameInput.value = savedName;
+    }
+  }
+  
+  // Load voice note date
+  const voiceNoteDateInput = document.getElementById('voice-note-date');
+  if (voiceNoteDateInput) {
+    const savedDate = getSettingFromCookie('voice-note-date');
+    if (savedDate) {
+      voiceNoteDateInput.value = savedDate;
+    }
+  }
+  
+  // Load other settings
+  const settingsToLoad = [
+    'voice-language', 'speaker-sex', 'voice-stability', 'voice-similarity', 
+    'background-sound', 'background-volume'
+  ];
+  
+  settingsToLoad.forEach(settingId => {
+    const element = document.getElementById(settingId);
+    if (element) {
+      const savedValue = getSettingFromCookie(settingId);
+      if (savedValue !== null) {
+        if (element.type === 'checkbox') {
+          element.checked = savedValue === 'true';
+        } else {
+          element.value = savedValue;
+          // Update slider value display
+          if (element.classList.contains('setting-slider')) {
+            const valueSpan = document.getElementById(`${settingId}-value`);
+            if (valueSpan) {
+              valueSpan.textContent = savedValue;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function saveAllSettingsToCookies() {
+  const settingsToSave = [
+    'voice-language', 'speaker-sex', 'voice-stability', 'voice-similarity',
+    'background-sound', 'background-volume', 'voice-note-name', 'voice-note-date'
+  ];
+  
+  settingsToSave.forEach(settingId => {
+    const element = document.getElementById(settingId);
+    if (element) {
+      const value = element.type === 'checkbox' ? element.checked : element.value;
+      saveSettingToCookie(settingId, value);
+    }
+  });
 }
