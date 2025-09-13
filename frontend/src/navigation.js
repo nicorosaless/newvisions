@@ -5,6 +5,7 @@ import { renderHomeScreen } from './screens/home.js';
 import { renderTokenScreen } from './screens/tokens.js';
 import { renderSettingsScreen } from './screens/settings.js';
 import { renderVoiceCloneScreen } from './screens/voice-clone.js';
+import { renderRoutineSelectionScreen } from './screens/routine-selection.js';
 import { setupEventListeners } from './events.js';
 
 export function renderScreen() {
@@ -28,8 +29,13 @@ export function renderScreen() {
     case 'voice-clone':
       app.innerHTML = renderVoiceCloneScreen();
       break;
+    case 'routine-selection':
+      app.innerHTML = renderRoutineSelectionScreen();
+      break;
   }
   setupEventListeners();
+  // Apply scroll policy immediately on render
+  applyScrollPolicy(getCurrentScreen());
 }
 
 export function navigateToScreen(screen) { performScreenTransition(screen); }
@@ -43,14 +49,8 @@ function performScreenTransition(targetScreen) {
   setTimeout(() => {
     setCurrentScreen(targetScreen);
     renderScreen();
-    // Toggle scroll behavior for tokens screen
-    if (targetScreen === 'tokens' || targetScreen === 'settings' || targetScreen === 'voice-clone') {
-      document.body.classList.add('scroll-enabled');
-      console.log('Added scroll-enabled class for screen:', targetScreen);
-    } else {
-      document.body.classList.remove('scroll-enabled');
-      console.log('Removed scroll-enabled class for screen:', targetScreen);
-    }
+  // Toggle scroll behavior using class-based lock
+  applyScrollPolicy(targetScreen);
     const newContainer = getNewScreenContainer(targetScreen);
     if (newContainer) {
       newContainer.style.opacity = '0';
@@ -66,14 +66,32 @@ function performScreenTransition(targetScreen) {
 function getCurrentScreenContainer() {
   const current = getCurrentScreen();
   if (['login','signup'].includes(current)) return document.getElementById('auth-card');
-  if (['home','tokens','settings','voice-clone'].includes(current)) return document.querySelector('.home-container, .settings-container, .voice-clone-container');
+  if (['home','tokens','settings','voice-clone'].includes(current)) return document.querySelector('.home-container, .tokens-page, .settings-container, .voice-clone-container');
+  if (current === 'routine-selection') return document.querySelector('.routine-selection-container');
   return null;
+}
+
+function applyScrollPolicy(screen) {
+  const body = document.body;
+  const html = document.documentElement;
+  const lock = () => { body.classList.add('no-scroll'); html.classList.add('no-scroll'); body.classList.remove('scroll-enabled'); };
+  const unlock = () => { body.classList.remove('no-scroll'); html.classList.remove('no-scroll'); };
+  // screens that should be scrollable
+  const scrollable = ['tokens', 'settings', 'voice-clone', 'routine-selection'];
+  if (scrollable.includes(screen)) {
+    unlock();
+    body.classList.add('scroll-enabled');
+  } else {
+    lock();
+  }
 }
 
 function getNewScreenContainer(screen) {
   if (['login','signup'].includes(screen)) return document.getElementById('auth-card');
-  if (['home','tokens'].includes(screen)) return document.querySelector('.home-container');
+  if (screen === 'home') return document.querySelector('.home-container');
+  if (screen === 'tokens') return document.querySelector('.tokens-page');
   if (screen === 'settings') return document.querySelector('.settings-container');
   if (screen === 'voice-clone') return document.querySelector('.voice-clone-container');
+  if (screen === 'routine-selection') return document.querySelector('.routine-selection-container');
   return null;
 }

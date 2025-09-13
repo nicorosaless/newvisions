@@ -4,6 +4,7 @@ import { handleLogin } from './screens/login.js';
 import { handleSignup } from './screens/signup.js';
 import { setupSettingsEventListeners } from './screens/settings.js';
 import { setupVoiceCloneEventListeners } from './screens/voice-clone.js';
+import { setupRoutineSelectionEventListeners } from './screens/routine-selection.js';
 
 export function setupEventListeners() {
   setupNavigationListeners();
@@ -16,6 +17,8 @@ export function setupEventListeners() {
     setupSettingsEventListeners();
   } else if (getCurrentScreen() === 'voice-clone') {
     setupVoiceCloneEventListeners();
+  } else if (getCurrentScreen() === 'routine-selection') {
+    setupRoutineSelectionEventListeners();
   }
 }
 
@@ -51,7 +54,7 @@ function setupFormListeners() {
 
 function setupActionListeners() {
   const actionButtons = [
-    { id: 'perform-btn', action: () => showComingSoonAlert('Perform functionality') },
+    { id: 'perform-btn', action: () => navigateToScreen('routine-selection') },
     { id: 'tutorial-btn', action: () => showComingSoonAlert('Tutorial functionality') },
     { id: 'settings-btn', action: () => navigateToScreen('settings') }
   ];
