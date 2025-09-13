@@ -84,6 +84,21 @@ body:has(.home-container) {
   overflow: hidden !important;
 }
 
+/* Disable scrolling when voice recording screen is active */
+body:has(.voice-recorder-app),
+html:has(.voice-recorder-app) {
+  overflow: hidden !important;
+  height: 100%;
+}
+
+/* Ensure app container doesn't add extra scroll when voice screen active */
+body:has(.voice-recorder-app) #app {
+  padding: 0 !important;
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
 /* Enable scrolling when token usage screen active */
 body.scroll-enabled {
   overflow-y: auto;
@@ -321,6 +336,11 @@ body.scroll-enabled html {
   
   body {
     background: #FFFFFF;
+  }
+  
+  /* Super light gray footer in light mode */
+  .recording-footer {
+    background: #FAFAFA;
   }
 }
 
@@ -686,6 +706,78 @@ body:has(.home-container) #app {
     font-size: 0.9rem;
     padding: 0.5rem 1rem;
   }
+}
+
+/* Fixed Recording Footer (iOS-style) */
+.recording-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 110;
+  background: var(--surface-secondary);
+  border-top: 1px solid var(--border-color);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.recording-footer-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  /* Slightly larger to feel more like iOS Voice Memos */
+  padding: 1.25rem 1.5rem calc(1.25rem + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.footer-record-btn {
+  /* Slightly larger control */
+  width: 100px;
+  height: 100px;
+  border-radius: 24px; /* rounded rectangle */
+  background: var(--input-background);
+  border: 1px solid var(--border-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: 0 10px 34px var(--shadow-color), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.footer-record-btn:active { transform: scale(0.98); }
+
+/* concentric circle button */
+.footer-record-ring {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--surface-color);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8), 0 4px 14px var(--shadow-color);
+}
+
+.footer-record-dot {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #FF3B30; /* iOS system red */
+  box-shadow: 0 10px 26px rgba(255, 59, 48, 0.55);
+}
+
+.footer-record-btn.active .footer-record-dot {
+  background: #FF453A; /* iOS pressed red */
+  box-shadow: 0 10px 26px rgba(255, 69, 58, 0.55);
+}
+
+@media (max-width: 480px) {
+  /* Scale up slightly on small screens as well */
+  .footer-record-btn { width: 84px; height: 84px; border-radius: 20px; }
+  .footer-record-ring { width: 64px; height: 64px; }
+  .footer-record-dot { width: 48px; height: 48px; }
 }
 
 /* Light mode adjustments for home screen */
@@ -1071,6 +1163,19 @@ body:has(.home-container) #app {
   .glass-panel:before { background: radial-gradient(circle at 75% 15%, rgba(255,255,255,0.7), transparent 55%); }
   .ring-background { stroke: rgba(0,0,0,0.08); }
   .ring-progress { filter: drop-shadow(0 0 6px rgba(0,122,255,0.4)); }
+  
+  /* Light mode adjustments for save settings button */
+  .save-settings-btn {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+  
+  .save-settings-btn:hover {
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  }
+  
+  .save-settings-btn:active {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  }
   .metric-trend.good { color:#1B8F4D; }
 }
 
@@ -1163,6 +1268,39 @@ body:has(.home-container) #app {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 1.25rem 1.25rem 1.75rem 1.25rem;
+}
+
+.settings-footer {
+  padding: 1.25rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--background-color);
+  position: sticky;
+  bottom: 0;
+}
+
+.save-settings-btn {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.save-settings-btn:hover {
+  background: linear-gradient(135deg, var(--primary-hover), #004499);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+}
+
+.save-settings-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
 .settings-section {
@@ -1607,7 +1745,7 @@ body:has(.home-container) #app {
 
 /* Recording Card */
 .recording-card {
-  padding: 2rem 0;
+  padding: 0.25rem 0;
   text-align: center;
   border-bottom: 1px solid var(--border-color);
 }
@@ -1952,155 +2090,6 @@ body:has(.home-container) #app {
   margin-top: 1rem; /* Add top margin for better spacing */
 }
 
-.microphone-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 1rem 0;
-}
-
-.mic-ring {
-  position: relative;
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.microphone-button {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  border: none;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 
-    0 8px 32px rgba(0, 122, 255, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  position: relative;
-  overflow: hidden;
-}
-
-.microphone-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent 60%);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.microphone-button:hover {
-  transform: scale(1.05);
-  box-shadow: 
-    0 12px 40px rgba(0, 122, 255, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.microphone-button:active {
-  transform: scale(0.98);
-}
-
-.microphone-container.recording .mic-ring {
-  background: linear-gradient(135deg, rgba(255, 71, 87, 0.15), rgba(255, 71, 87, 0.05));
-  border-color: rgba(255, 71, 87, 0.3);
-  animation: recordingRingPulse 2s infinite;
-}
-
-.microphone-container.recording .microphone-button {
-  background: linear-gradient(135deg, #ff4757, #ff3742);
-  box-shadow: 
-    0 8px 32px rgba(255, 71, 87, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  animation: recordingButtonPulse 2s infinite;
-}
-
-@keyframes recordingRingPulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.8;
-  }
-}
-
-@keyframes recordingButtonPulse {
-  0%, 100% {
-    box-shadow: 
-      0 8px 32px rgba(255, 71, 87, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  }
-  50% {
-    box-shadow: 
-      0 8px 32px rgba(255, 71, 87, 0.6),
-      0 0 0 20px rgba(255, 71, 87, 0.1),
-      0 0 0 40px rgba(255, 71, 87, 0.05),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  }
-}
-
-.microphone-icon {
-  width: 48px;
-  height: 48px;
-  color: white;
-  stroke-width: 2;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));
-}
-
-/* Recording Status */
-.recording-status {
-  padding: 0.75rem 1.25rem;
-  background: var(--surface-color);
-  border-radius: 20px;
-  border: 1px solid var(--border-color);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 4px 20px var(--shadow-color);
-}
-
-.status-text {
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-/* Recording Timer */
-.recording-timer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.timer-container {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1.5rem;
-  background: var(--surface-color);
-  border-radius: 20px;
-  border: 1px solid var(--border-color);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 4px 20px var(--shadow-color);
-}
-
 .recording-indicator {
   width: 8px;
   height: 8px;
@@ -2255,17 +2244,6 @@ body:has(.home-container) #app {
       0 0 0 20px rgba(255, 71, 87, 0.1),
       0 0 0 40px rgba(255, 71, 87, 0.05),
       inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  }
-}
-
-@keyframes recordingIndicatorPulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.3;
-    transform: scale(0.8);
   }
 }
 
@@ -3217,6 +3195,12 @@ body:has(.home-container) #app {
   display: flex;
   flex-direction: column;
   width: 100%;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 /* Override app padding for full-width voice recording screen */
@@ -3304,8 +3288,9 @@ body:has(.voice-recorder-app) #app {
 .voice-content {
   flex: 1;
   padding: 0;
-  overflow: hidden;
+  overflow: hidden; /* container doesn't scroll; inner panel will */
   width: 100%;
+  min-height: 100vh; /* ensure full viewport height so inner scroll feels independent */
 }
 
 .voice-panel {
@@ -3318,6 +3303,7 @@ body:has(.voice-recorder-app) #app {
 .voice-panel.active {
   display: flex;
   flex-direction: column;
+  overflow-y: hidden; /* disable scrolling on the voice-recording screen */
 }
 
 /* Record Panel */
@@ -3562,7 +3548,7 @@ body:has(.voice-recorder-app) #app {
 
 /* Recordings Container */
 .recordings-container {
-  padding: 1rem 0 6rem;
+  padding: 1rem 0 12rem; /* extra bottom space for larger footer overlay */
 }
 
 .recordings-section {
@@ -3611,10 +3597,16 @@ body:has(.voice-recorder-app) #app {
 
 .recording-card.expanded {
   background: var(--surface-secondary);
-  border-radius: 12px;
-  border-bottom: 1px solid var(--border-color);
-  margin: 0.5rem 0;
-  padding: 1rem;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  margin: 0.75rem 0;
+  padding: 1.5rem;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  /* box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1); */
+  transition: all 0.2s ease;
 }
 
 /* iOS Header */
@@ -3671,12 +3663,12 @@ body:has(.voice-recorder-app) #app {
 
 /* Flat iOS List Tweaks */
 .recordings-section.flat-list { padding: 0 0.25rem; }
-.recording-header { min-height: 44px; }
+.recording-header { min-height: 28px; }
 .recording-card .recording-title { font-size: 17px; font-weight: 600; text-align: left; }
 .recording-card .recording-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 2px; text-align: left; }
 .recording-duration { color: var(--text-secondary); font-size: 13px; text-align: right; }
-.recording-card { border-bottom-color: rgba(255,255,255,0.08); }
-.recording-card:hover { background: rgba(255,255,255,0.04); }
+.recording-card { border-bottom-color: var(--border-color); }
+.recording-card:hover { background: var(--input-background); }
 .recording-card:last-child { border-bottom: none; }
 
 .recording-main {
@@ -3690,18 +3682,18 @@ body:has(.voice-recorder-app) #app {
   align-items: center;
   justify-content: space-between;
   gap: 0.125rem;
+  width: 100%;
 }
 
 .recording-info {
   flex: 1;
   min-width: 0;
   text-align: left;
-  margin-left: -5rem;
   padding-left: 0;
 }
 
 .recording-card .recording-title {
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 0.25rem 0;
@@ -3710,28 +3702,36 @@ body:has(.voice-recorder-app) #app {
   text-overflow: ellipsis;
   line-height: 1.3;
   text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  letter-spacing: -0.01em;
 }
 
 .recording-subtitle {
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.3;
   text-align: left;
+  font-weight: 400;
+  opacity: 0.8;
 }
 
 .recording-duration {
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  background: var(--background-color);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 0.375rem 1rem;
   white-space: nowrap;
   min-width: fit-content;
-  text-align: right;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 /* Waveform Visualization */
@@ -3781,30 +3781,40 @@ body:has(.voice-recorder-app) #app {
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
-  padding: 0.75rem 0;
-  margin-top: 0.5rem;
-  border-top: 1px solid var(--border-color);
-  transition: all 0.3s ease;
+  padding: 1.5rem 2rem;
+  margin-top: 1.25rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+  border-radius: 20px;
+  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   opacity: 0;
+  transform: translateY(20px) scale(0.95);
   max-height: 0;
   overflow: hidden;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .recording-card.expanded .playback-controls {
   opacity: 1;
-  max-height: 100px;
+  transform: translateY(0) scale(1);
+  max-height: 120px;
 }
 
 .recording-card.expanded .playback-controls:not(.hidden) {
   display: flex;
+  transition: opacity 0.2s ease;
 }
 
 .control-button {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: var(--input-background);
-  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   color: var(--text-primary);
   display: flex;
   align-items: center;
@@ -3812,29 +3822,104 @@ body:has(.voice-recorder-app) #app {
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.control-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .control-button:hover {
-  background: var(--surface-secondary);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.control-button:hover::before {
+  opacity: 1;
+}
+
+.control-button:active {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .play-pause-btn {
-  width: 52px;
-  height: 52px;
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #007AFF 0%, #0056CC 100%);
+  border: none;
+  box-shadow:
+    0 8px 28px rgba(0, 122, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 1;
+}
+
+.play-pause-btn::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.4) 0%, rgba(0, 86, 204, 0.4) 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: -1;
+}
+
+.play-pause-btn:hover::before {
+  opacity: 1;
 }
 
 .play-pause-btn:hover {
-  background: var(--primary-hover);
-  transform: scale(1.08);
+  background: linear-gradient(135deg, #0056CC 0%, #004499 100%);
+  box-shadow:
+    0 8px 24px rgba(0, 122, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.play-pause-btn:active {
+  background: linear-gradient(135deg, #004499 0%, #003366 100%);
 }
 
 .play-icon, .pause-icon {
   position: absolute;
   transition: opacity 0.2s ease;
+  width: 20px;
+  height: 20px;
+}
+
+.control-button svg {
+  width: 20px;
+  height: 20px;
+  opacity: 0.9;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+.control-button:hover svg {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.play-pause-btn svg {
+  width: 28px;
+  height: 28px;
+  opacity: 1;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
 }
 
 .playback-time {
@@ -3842,19 +3927,88 @@ body:has(.voice-recorder-app) #app {
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
-  min-width: 60px;
+  min-width: 70px;
+  font-weight: 500;
+  text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .current-time {
   font-weight: 600;
   color: var(--text-primary);
+  font-size: 1rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  letter-spacing: -0.01em;
 }
 
 .total-time {
-  opacity: 0.7;
+  opacity: 0.6;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+/* Progress Bar */
+.progress-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  max-width: 280px;
+  margin: 0 2rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar:hover {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #007AFF 0%, #0056CC 100%);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  box-shadow: 0 0 8px rgba(0, 122, 255, 0.4);
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background: var(--primary-color);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.progress-bar:hover .progress-fill::after {
+  opacity: 1;
 }
 
 /* Floating Record Button */
@@ -3946,7 +4100,8 @@ body:has(.voice-recorder-app) #app {
   }
   
   .playback-controls {
-    gap: 1rem;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
   }
   
   .control-button {
@@ -3957,6 +4112,11 @@ body:has(.voice-recorder-app) #app {
   .play-pause-btn {
     width: 48px;
     height: 48px;
+  }
+  
+  .progress-container {
+    max-width: 150px;
+    margin: 0 0.75rem;
   }
   
   .floating-record-container {

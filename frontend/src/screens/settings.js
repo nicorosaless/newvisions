@@ -126,6 +126,13 @@ export function renderSettingsScreen() {
           </div>
         </div>
       </div>
+      
+      <!-- Save Settings Button -->
+      <div class="settings-footer">
+        <button class="save-settings-btn" id="save-settings">
+          Save Settings
+        </button>
+      </div>
     </div>`;
 }
 
@@ -173,5 +180,16 @@ export function setupSettingsEventListeners() {
     backgroundSoundToggle.addEventListener('change', updateVolumeSlider);
     // Initial state
     updateVolumeSlider();
+  }
+
+  // Handle save settings button
+  const saveSettingsBtn = document.getElementById('save-settings');
+  if (saveSettingsBtn) {
+    saveSettingsBtn.addEventListener('click', () => {
+      // TODO: Implement actual save functionality
+      console.log('Saving settings...');
+      // For now, just show a simple alert
+      alert('Settings saved successfully!');
+    });
   }
 }

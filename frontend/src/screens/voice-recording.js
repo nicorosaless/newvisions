@@ -44,7 +44,7 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                                                 <h4 class="recording-title">Recording on 14 May 2025</h4>
                                                 <div class="recording-subtitle">14 May 2025</div>
                                         </div>
-                                            <div class="recording-duration">0:15</div>
+                                        <div class="recording-duration">2:34</div>
                                     </div>
                                     
                                     <div class="playback-controls hidden">
@@ -71,6 +71,12 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                                                 <line x1="19" y1="5" x2="19" y2="19"></line>
                                             </svg>
                                         </button>
+                                        
+                                        <div class="progress-container">
+                                            <div class="progress-bar">
+                                                <div class="progress-fill"></div>
+                                            </div>
+                                        </div>
                                         
                                         <div class="playback-time">
                                             <span class="current-time">0:00</span>
@@ -87,7 +93,7 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                                                 <h4 class="recording-title">Recording on 14 Apr 2024</h4>
                                                 <div class="recording-subtitle">14 Apr 2024</div>
                                         </div>
-                                            <div class="recording-duration">0:10</div>
+                                        <div class="recording-duration">15:42</div>
                                     </div>
                                     
                                     <div class="playback-controls hidden">
@@ -114,6 +120,12 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                                                 <line x1="19" y1="5" x2="19" y2="19"></line>
                                             </svg>
                                         </button>
+                                        
+                                        <div class="progress-container">
+                                            <div class="progress-bar">
+                                                <div class="progress-fill"></div>
+                                            </div>
+                                        </div>
                                         
                                         <div class="playback-time">
                                             <span class="current-time">0:00</span>
@@ -130,7 +142,7 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                                                 <h4 class="recording-title">Recording on 4 Oct 2023</h4>
                                                 <div class="recording-subtitle">4 Oct 2023</div>
                                         </div>
-                                            <div class="recording-duration">0:06</div>
+                                        <div class="recording-duration">1:28</div>
                                     </div>
                                     
                                     <div class="playback-controls hidden">
@@ -157,6 +169,12 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                                                 <line x1="19" y1="5" x2="19" y2="19"></line>
                                             </svg>
                                         </button>
+                                        
+                                        <div class="progress-container">
+                                            <div class="progress-bar">
+                                                <div class="progress-fill"></div>
+                                            </div>
+                                        </div>
                                         
                                         <div class="playback-time">
                                             <span class="current-time">0:00</span>
@@ -166,90 +184,6 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                                 </div>
                             </div>
 
-                            <div class="recording-card" data-recording-id="9">
-                                <div class="recording-main">
-                                    <div class="recording-header">
-                                        <div class="recording-info">
-                                            <h4 class="recording-title">Recording on 31 Aug 2025</h4>
-                                            <div class="recording-subtitle">31 Aug 2025</div>
-                                        </div>
-                                        <div class="recording-duration">1:45</div>
-                                    </div>
-                                    
-                                    <div class="playback-controls hidden">
-                                        <button class="control-button skip-backward">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                                <polygon points="19,20 9,12 19,4"></polygon>
-                                                <line x1="5" y1="19" x2="5" y2="5"></line>
-                                            </svg>
-                                        </button>
-                                        
-                                        <button class="control-button play-pause-btn">
-                                            <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                                <polygon points="5,3 19,12 5,21"></polygon>
-                                            </svg>
-                                            <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                                <rect x="6" y="4" width="4" height="16"></rect>
-                                                <rect x="14" y="4" width="4" height="16"></rect>
-                                            </svg>
-                                        </button>
-                                        
-                                        <button class="control-button skip-forward">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                                <polygon points="5,4 15,12 5,20"></polygon>
-                                                <line x1="19" y1="5" x2="19" y2="19"></line>
-                                            </svg>
-                                        </button>
-                                        
-                                        <div class="playback-time">
-                                            <span class="current-time">0:00</span>
-                                            <span class="total-time">1:45</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="recording-card" data-recording-id="10">
-                                <div class="recording-main">
-                                    <div class="recording-header">
-                                        <div class="recording-info">
-                                            <h4 class="recording-title">Recording on 30 Aug 2025</h4>
-                                            <div class="recording-subtitle">30 Aug 2025</div>
-                                        </div>
-                                        <div class="recording-duration">2:30</div>
-                                    </div>
-                                    
-                                    <div class="playback-controls hidden">
-                                        <button class="control-button skip-backward">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                                <polygon points="19,20 9,12 19,4"></polygon>
-                                                <line x1="5" y1="19" x2="5" y2="5"></line>
-                                            </svg>
-                                        </button>
-                                        
-                                        <button class="control-button play-pause-btn">
-                                            <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                                <polygon points="5,3 19,12 5,21"></polygon>
-                                            </svg>
-                                            <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                                <rect x="6" y="4" width="4" height="16"></rect>
-                                                <rect x="14" y="4" width="4" height="16"></rect>
-                                            </svg>
-                                        </button>
-                                        
-                                        <button class="control-button skip-forward">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                                <polygon points="5,4 15,12 5,20"></polygon>
-                                                <line x1="19" y1="5" x2="19" y2="19"></line>
-                                            </svg>
-                                        </button>
-                                        
-                                        <div class="playback-time">
-                                            <span class="current-time">0:00</span>
-                                            <span class="total-time">2:30</span>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
 
 
@@ -259,6 +193,16 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
 
         </section>
       </main>
+
+      <!-- Bottom Recording Footer (iOS-style) -->
+      <footer class="recording-footer" aria-label="Record Controls">
+        <div class="recording-footer-inner">
+          <button id="footer-record-btn" class="footer-record-btn" aria-pressed="false">
+            <span class="footer-record-ring"></span>
+            <span class="footer-record-dot"></span>
+          </button>
+        </div>
+      </footer>
 
       <!-- Hidden routine info -->
       <div id="current-routine-info" style="display:none" data-type="${routineType}" data-value="${routineValue}"></div>
@@ -457,6 +401,16 @@ export function setupVoiceRecordingEventListeners() {
         card.style.display = 'none';
       }
     });
+  });
+
+  // Footer record button interaction (visual only for now)
+  const footerRecordBtn = document.getElementById('footer-record-btn');
+  footerRecordBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isActive = footerRecordBtn.classList.toggle('active');
+    footerRecordBtn.setAttribute('aria-pressed', String(isActive));
+    // TODO: hook into actual recording flow when available
+    console.log(isActive ? 'Start recording (UI only)' : 'Stop recording (UI only)');
   });
 }
 
