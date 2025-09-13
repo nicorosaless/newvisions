@@ -53,28 +53,41 @@
 
 ## 🔧 Estructura Detallada del Campo `settings`
 
-Basado en los documentos analizados, el campo `settings` contiene:
+Evolución: antes se almacenaban claves en formato libre (`language`, `stability`, `add_background_sound`). Ahora el backend normaliza a un modelo tipado (`UserSettings`) con rangos 0–100 para sliders y nombres consistentes con la UI.
+
+### Modelo Actual (backend `UserSettings`)
 
 ```json
 {
-    "language": "english",           // Idioma preferido
-    "voice_similarity": 0.85,        // Similitud de voz (0.0 - 1.0)
-    "stability": 0.7,               // Estabilidad de voz (0.0 - 1.0)
-    "add_background_sound": true,    // Agregar sonido de fondo
-    "background_volume": 0.5,        // Volumen del sonido de fondo (0.0 - 1.0)
-    "sex": "male",                   // Género del usuario ("male" | "female")
-    "OS": "ios"                      // Sistema operativo ("android" | "ios")
+        "voice_language": "en",            // Idioma (código corto: en, es, fr, ...)
+        "speaker_sex": "male",             // Sexo del hablante (male|female)
+        "voice_stability": 50,              // 0-100 (antes: stability 0.0-1.0)
+        "voice_similarity": 75,             // 0-100 (antes: voice_similarity 0.0-1.0)
+        "background_sound": false,          // (antes: add_background_sound)
+        "background_volume": 30,            // 0-100 (antes: 0.0-1.0)
+        "voice_note_name": "My First",      // Nuevo campo (string opcional)
+        "voice_note_date": "2025-09-13"     // Nuevo campo (YYYY-MM-DD opcional)
 }
 ```
 
-**Campos del settings:**
-- **language**: `str` - Idioma para generación de contenido (`english`, `spanish`)
-- **voice_similarity**: `float` - Qué tan similar suena a la voz original (0.0-1.0)
-- **stability**: `float` - Estabilidad de la voz generada (0.0-1.0)
-- **add_background_sound**: `bool` - Si agregar sonido ambiental
-- **background_volume**: `float` - Volumen del sonido de fondo (0.0-1.0)
-- **sex**: `str` - Género del usuario (`male` | `female`)
-- **OS**: `str` - Sistema operativo del dispositivo (`android` | `ios`)
+### Mapeo Campos Antiguos → Nuevos
+| Antiguo                | Nuevo               | Conversión |
+|------------------------|---------------------|------------|
+| `language`             | `voice_language`    | mantener código (o map english->en) |
+| `stability` (0.0-1.0)  | `voice_stability`   | `int(value*100)` |
+| `voice_similarity` (0.0-1.0) | `voice_similarity` | `int(value*100)` |
+| `add_background_sound` | `background_sound`  | boolean igual |
+| `background_volume` (0.0-1.0) | `background_volume` | `int(value*100)` |
+| `sex`                  | `speaker_sex`       | igual |
+| `OS`                   | (no usado aún)      | pendiente decidir si se preserva |
+
+### Nuevos Campos
+- **voice_note_name**: etiqueta personalizada para primera nota / future seed.
+- **voice_note_date**: fecha asociada (string `YYYY-MM-DD`).
+
+### Notas de Compatibilidad
+- Si documentos antiguos existen, al hacer GET el endpoint rellena defaults; migración perezosa posible en futura tarea (`migration_settings_normalizer.py`).
+- Los sliders ahora se expresan como enteros 0–100 para simplificar UI sin floats.
 
 ---
 
@@ -148,8 +161,8 @@ users.settings = {
 - `recordedVoice`: null hasta que se grabe audio
 
 ### Nuevos Campos en Settings
-- `sex`: "male" | "female" (requerido en settings)
-- `OS`: "android" | "ios" (requerido en settings)
+- `voice_note_name`: string opcional (<=50 chars)
+- `voice_note_date`: string fecha opcional `YYYY-MM-DD`
 
 ### Validaciones Importantes
 - `username` y `email`: únicos en la colección
@@ -194,10 +207,13 @@ db.users.createIndex({ "settings.OS": 1 })
 - **Validaciones de Settings**: Los campos `sex` y `OS` tienen valores enumerados restrictivos
 - **Códigos de Activación**: Deben ser exactamente 11 caracteres alfanuméricos (letras y números)
 
-### Campos de Settings con Validación
-- `sex`: Solo acepta "male" o "female"
-- `OS`: Solo acepta "android" o "ios"
-- Ambos campos son requeridos cuando se crea el objeto settings
+### Campos de Settings con Validación (modelo actual)
+- `voice_language`: código ISO corto (no se valida exhaustivamente todavía)
+- `speaker_sex`: "male" | "female"
+- `voice_stability`, `voice_similarity`, `background_volume`: `int` 0–100
+- `background_sound`: boolean
+- `voice_note_name`: <=50 chars
+- `voice_note_date`: formato `YYYY-MM-DD`
 
 ### Formato de Códigos de Activación
 - **Longitud**: Exactamente 11 caracteres

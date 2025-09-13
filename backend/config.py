@@ -21,6 +21,12 @@ class Settings:
     # AI Providers
     elevenlabs_api_key: Optional[str] = os.getenv("ELEVEN_LABS_API_KEY")
     elevenlabs_voice_id: Optional[str] = os.getenv("ELEVEN_LABS_VOICE_ID")
+    elevenlabs_model: str = os.getenv("ELEVEN_LABS_MODEL", "eleven_turbo_v2_5")
+    # Pool de voces persistentes (limitado por tier ElevenLabs)
+    elevenlabs_pool_enabled: bool = True
+    elevenlabs_pool_capacity: int = 10  # valor por defecto; puede variar según tier
+    elevenlabs_pool_ttl_minutes: int = 30  # tiempo de inactividad para considerar elegible limpieza
+    elevenlabs_pool_eviction_strategy: str = "lru"  # reservado para futuras estrategias (lfu, ttl)
     google_api_key: Optional[str] = os.getenv("GOOGLE_API_KEY")
 
     # Data

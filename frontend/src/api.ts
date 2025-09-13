@@ -64,6 +64,43 @@ export interface LoginResponse {
 	email: string;
 }
 
+export interface UserMetaResponse {
+  charCount: number;
+  monthlyLimit: number;
+}
+
+// Perform models
+export interface PerformRequest {
+	user_id: string; // backend expects field named user_id
+	routine_type: string;
+	value: string;
+	settings_override?: Partial<UserSettings>;
+}
+export interface PerformResponse {
+	routine_type: string;
+	text: string;
+	audio_base64: string;
+	filename: string;
+	charCount: number;
+	monthlyLimit: number;
+}
+
+export interface VoiceUploadResponse { status: string; bytes: number; hash?: string; duration?: number }
+
+// User settings models
+export interface UserSettings {
+	voice_language: string;
+	speaker_sex: string;
+	voice_stability: number;
+	voice_similarity: number;
+	background_sound: boolean;
+	background_volume: number;
+	voice_note_name?: string | null;
+	voice_note_date?: string | null; // YYYY-MM-DD
+}
+
+export type SettingsUpdateRequest = UserSettings; // identical for now
+
 export class ApiError extends Error {
 	status: number;
 	details: any;
@@ -161,6 +198,38 @@ export class ApiClient {
 			return this.request<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data), skipAuth: true });
 		}
 
+	updateUserSettings(userId: string, settings: SettingsUpdateRequest): Promise<UserSettings> {
+		return this.request<UserSettings>(`/users/${encodeURIComponent(userId)}/settings`, {
+			method: 'PUT',
+			body: JSON.stringify(settings),
+			skipAuth: true // backend no requiere auth todavía para settings
+		});
+	}
+
+	getUserSettings(userId: string): Promise<UserSettings> {
+		return this.request<UserSettings>(`/users/${encodeURIComponent(userId)}/settings`, { method: 'GET', skipAuth: true });
+	}
+
+	getUserMeta(userId: string): Promise<UserMetaResponse> {
+		return this.request<UserMetaResponse>(`/users/${encodeURIComponent(userId)}/meta`, { method: 'GET', skipAuth: true });
+	}
+
+	perform(data: PerformRequest): Promise<PerformResponse> {
+		return this.request<PerformResponse>('/perform', {
+			method: 'POST',
+			body: JSON.stringify(data),
+			skipAuth: true
+		});
+	}
+
+	uploadUserVoice(userId: string, audioBase64: string, mimeType?: string, durationSeconds?: number): Promise<VoiceUploadResponse> {
+		return this.request<VoiceUploadResponse>(`/users/${encodeURIComponent(userId)}/voice`, {
+			method: 'POST',
+			body: JSON.stringify({ audio_base64: audioBase64, mime_type: mimeType, duration_seconds: durationSeconds }),
+			skipAuth: true
+		});
+	}
+
 	// -----------------------------
 	// Helpers
 	// -----------------------------
@@ -194,6 +263,11 @@ export const fetchAudioFile = (filename: string) => apiClient.getAudioFile(filen
 export const fetchElevenLabsStatus = () => apiClient.elevenLabsStatus();
 export const registerUser = (data: RegisterRequest) => apiClient.register(data);
 export const loginUser = (data: LoginRequest) => apiClient.login(data);
+export const updateUserSettings = (userId: string, settings: SettingsUpdateRequest) => apiClient.updateUserSettings(userId, settings);
+export const getUserSettings = (userId: string) => apiClient.getUserSettings(userId);
+export const getUserMeta = (userId: string) => apiClient.getUserMeta(userId);
+export const performRoutine = (data: PerformRequest) => apiClient.perform(data);
+export const uploadUserVoice = (userId: string, audioBase64: string, mimeType?: string, durationSeconds?: number) => apiClient.uploadUserVoice(userId, audioBase64, mimeType, durationSeconds);
 
 // Example usage (remove or adapt in integration phase):
 // fetchThought('Movies', 'Inception').then(console.log).catch(console.error);

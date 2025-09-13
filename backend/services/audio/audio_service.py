@@ -33,18 +33,23 @@ def synthesize_audio_bytes(text: str) -> bytes:
         from elevenlabs import VoiceSettings  # type: ignore
         client = ElevenLabs(api_key=api_key)
         voice_id = settings.elevenlabs_voice_id or "21m00Tcm4TlvDq8ikWAM"  # fallback to known valid voice
+        model_id = settings.elevenlabs_model
         voice_settings = VoiceSettings(stability=0.5, similarity_boost=0.75, style=0.3, use_speaker_boost=True)
         audio = client.text_to_speech.convert(
             voice_id=voice_id,
             optimize_streaming_latency=0,
             output_format="mp3_44100_128",
             text=text,
+            model_id=model_id,
             voice_settings=voice_settings,
         )
-        if hasattr(audio, "__iter__") and not isinstance(audio, (bytes, bytearray)):
-            audio_bytes = b"".join(chunk for chunk in audio)
-        else:
+        if isinstance(audio, (bytes, bytearray)):
             audio_bytes = bytes(audio)
+        else:
+            try:
+                audio_bytes = b"".join(chunk for chunk in audio)  # type: ignore
+            except Exception:
+                audio_bytes = b""
         logger.info("ElevenLabs audio bytes=%d", len(audio_bytes))
         return audio_bytes
     except Exception as e:
@@ -61,12 +66,16 @@ def synthesize_audio_bytes(text: str) -> bytes:
                         optimize_streaming_latency=0,
                         output_format="mp3_44100_128",
                         text=text,
+                        model_id=model_id,
                         voice_settings=voice_settings,
                     )
-                    if hasattr(audio, "__iter__") and not isinstance(audio, (bytes, bytearray)):
-                        audio_bytes = b"".join(chunk for chunk in audio)
-                    else:
+                    if isinstance(audio, (bytes, bytearray)):
                         audio_bytes = bytes(audio)
+                    else:
+                        try:
+                            audio_bytes = b"".join(chunk for chunk in audio)  # type: ignore
+                        except Exception:
+                            audio_bytes = b""
                     logger.info("Fallback audio bytes=%d", len(audio_bytes))
                     return audio_bytes
         except Exception as fallback_e:

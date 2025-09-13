@@ -375,6 +375,31 @@ export function setupVoiceCloneEventListeners() {
               showPermissionError('Recording appears to be too short. Please record for at least a few seconds.');
               return;
             }
+
+            // Enforce 30-60 seconds window before enabling generate
+            if (recordedAudio.duration < 30 || recordedAudio.duration > 60) {
+              const msg = recordedAudio.duration < 30
+                ? 'Recording must be at least 30 seconds (current: ' + recordedAudio.duration.toFixed(1) + 's)'
+                : 'Recording must be at most 60 seconds (current: ' + recordedAudio.duration.toFixed(1) + 's)';
+              showPermissionError(msg);
+              if (generateButton) {
+                generateButton.disabled = true;
+                generateButton.style.display = 'none';
+              }
+            } else {
+              if (generateButton) {
+                generateButton.disabled = false;
+                generateButton.style.display = 'inline-flex';
+              }
+              if (recordingStatus) {
+                recordingStatus.style.display = 'block';
+                const statusText = recordingStatus.querySelector('.status-text');
+                if (statusText) {
+                  statusText.style.color = '';
+                  statusText.textContent = 'Ready to upload (' + recordedAudio.duration.toFixed(1) + 's)';
+                }
+              }
+            }
             
             // Show playback section
             if (playbackSection) {
@@ -616,30 +641,61 @@ export function setupVoiceCloneEventListeners() {
   }
 
   function generateVoiceClone() {
-    // Hide playback section and show processing
+    if (!recordedChunks.length) {
+      showPermissionError('No recording to upload. Please record first.');
+      return;
+    }
+    // Derive duration from audio element if available
+    let durationSeconds = null;
+    try {
+      if (recordedAudio && !isNaN(recordedAudio.duration) && recordedAudio.duration > 0) {
+        durationSeconds = recordedAudio.duration;
+      }
+    } catch (_) {}
+    if (durationSeconds !== null && (durationSeconds < 30 || durationSeconds > 60)) {
+      showPermissionError('Duration must be between 30 and 60 seconds. Current: ' + durationSeconds.toFixed(1) + 's');
+      return;
+    }
     playbackSection.style.display = 'none';
     processingSection.style.display = 'block';
-    
-    // Add progress animation
     const progressFill = document.querySelector('.progress-fill');
-    if (progressFill) {
-      progressFill.style.animation = 'progressAnimation 3s ease-in-out';
-    }
-    
-    // Simulate processing time
-    setTimeout(() => {
+    if (progressFill) progressFill.style.animation = 'progressAnimation 3s ease-in-out';
+
+    const userId = (document.cookie.match(/user_id=([^;]+)/) || [])[1] || localStorage.getItem('user_id');
+    if (!userId) {
+      showPermissionError('User not identified. Please login again.');
       processingSection.style.display = 'none';
-      // Show success message
-      if (recordingStatus) {
-        recordingStatus.querySelector('.status-text').textContent = 'Voice clone generated successfully! You can now use your custom voice.';
-        recordingStatus.style.color = '#2ed573';
-        recordingStatus.style.display = 'block';
+      return;
+    }
+
+    let mimeType = 'audio/webm';
+    if (MediaRecorder && MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+    else if (MediaRecorder && MediaRecorder.isTypeSupported('audio/wav')) mimeType = 'audio/wav';
+    const blob = new Blob(recordedChunks, { type: mimeType });
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = reader.result; // data URL
+        const { uploadUserVoice } = await import('../api.ts');
+        const resp = await uploadUserVoice(userId, base64, mimeType, durationSeconds || undefined);
+        processingSection.style.display = 'none';
+    if (recordingStatus) {
+      const statusText = recordingStatus.querySelector('.status-text');
+  if (statusText) statusText.textContent = 'Voice clone saved successfully (' + (durationSeconds ? durationSeconds.toFixed(1) + 's' : '') + ')';
+      recordingStatus.style.color = '#2ed573';
+      recordingStatus.style.display = 'block';
+    }
+      } catch (e) {
+        console.error('Voice upload failed', e);
+        processingSection.style.display = 'none';
+        showPermissionError('Upload failed: ' + (e.message || 'Unknown error'));
       }
-      // Reset the screen after a delay
-      setTimeout(() => {
-        resetRecording();
-      }, 2000);
-    }, 3000);
+    };
+    reader.onerror = () => {
+      processingSection.style.display = 'none';
+      showPermissionError('Failed reading audio for upload');
+    };
+    reader.readAsDataURL(blob);
   }
 
   async function checkMicrophonePermission() {

@@ -453,6 +453,152 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
 }
 
 export function setupVoiceRecordingEventListeners() {
+    // Auto-perform pipeline: extract routine info and request generation
+    try {
+        const routineInfo = document.getElementById('current-routine-info');
+        const userId = (document.cookie.match(/user_id=([^;]+)/) || [])[1] || localStorage.getItem('user_id');
+        if (routineInfo && userId) {
+            const routine_type = routineInfo.getAttribute('data-type');
+            const routine_value = routineInfo.getAttribute('data-value');
+            if (routine_type && routine_value) {
+                triggerPerformPipeline(userId, routine_type, routine_value);
+            }
+        }
+    } catch (e) {
+        console.warn('Perform auto pipeline init failed', e);
+    }
+
+    async function triggerPerformPipeline(userId, routineType, routineValue) {
+        const container = document.querySelector('.recordings-container');
+        if (!container) return;
+        // Placeholder loading card
+        const loadingId = 'generated-loading';
+        if (!document.getElementById(loadingId)) {
+            const loading = document.createElement('div');
+            loading.id = loadingId;
+            loading.className = 'recording-card';
+            loading.innerHTML = `<div class="recording-main"><div class="recording-header"><div class="recording-info"><h4 class="recording-title">Generating thought...</h4><div class="recording-subtitle">Please wait</div></div><div class="recording-duration">--</div></div></div>`;
+            container.prepend(loading);
+        }
+        try {
+            const { performRoutine } = await import('../api.ts');
+            const resp = await performRoutine({ user_id: userId, routine_type: routineType, value: routineValue });
+            renderGeneratedRecording(resp, container);
+        } catch (err) {
+            console.error('Perform error', err);
+            const loading = document.getElementById(loadingId);
+            if (loading) {
+                loading.querySelector('.recording-title').textContent = 'Error generating';
+                loading.querySelector('.recording-subtitle').textContent = (err && err.message) || 'Unknown error';
+            }
+        }
+    }
+
+    function renderGeneratedRecording(resp, container) {
+        const loading = document.getElementById('generated-loading');
+        if (loading) loading.remove();
+        const card = document.createElement('div');
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+        card.className = 'recording-card generated';
+        card.innerHTML = `
+            <div class="recording-main">
+                <div class="recording-header">
+                    <div class="recording-info">
+                        <h4 class="recording-title">${escapeHtml(resp.text.substring(0, 40))}${resp.text.length > 40 ? '…' : ''}</h4>
+                        <div class="recording-subtitle">${dateStr} · ${resp.routine_type}</div>
+                    </div>
+                    <div class="recording-duration">--:--</div>
+                </div>
+                <div class="playback-controls hidden">
+                    <button class="control-button play-pause-btn">
+                        <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"></polygon></svg>
+                        <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                    </button>
+                    <div class="progress-container"><div class="progress-bar"><div class="progress-fill"></div></div></div>
+                    <div class="playback-time"><span class="current-time">0:00</span><span class="total-time">--:--</span></div>
+                </div>
+                <audio class="generated-audio" preload="auto" style="display:none"></audio>
+            </div>`;
+        container.prepend(card);
+        // Decode base64 audio and attach to audio element
+        const audioEl = card.querySelector('audio.generated-audio');
+        try {
+            const blob = base64ToBlob(resp.audio_base64, 'audio/mpeg');
+            const url = URL.createObjectURL(blob);
+            audioEl.src = url;
+            audioEl.addEventListener('loadedmetadata', () => {
+                const dur = formatSeconds(audioEl.duration);
+                const durEl = card.querySelector('.recording-duration');
+                const totalTimeEl = card.querySelector('.total-time');
+                if (durEl) durEl.textContent = dur;
+                if (totalTimeEl) totalTimeEl.textContent = dur;
+            });
+        } catch (e) {
+            console.warn('Failed to attach audio', e);
+        }
+        wireCardInteractions(card);
+    }
+
+    function base64ToBlob(b64, mime) {
+        const byteChars = atob(b64);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: mime });
+    }
+
+    function formatSeconds(sec) {
+        if (!isFinite(sec)) return '--:--';
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>"] /g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',' ':' ' }[c] || c));
+    }
+
+    function wireCardInteractions(card) {
+        const controls = card.querySelector('.playback-controls');
+        const header = card.querySelector('.recording-header');
+        const playBtn = card.querySelector('.play-pause-btn');
+        const playIcon = card.querySelector('.play-icon');
+        const pauseIcon = card.querySelector('.pause-icon');
+        const audio = card.querySelector('audio.generated-audio');
+        const progressFill = card.querySelector('.progress-fill');
+        const currentTimeEl = card.querySelector('.current-time');
+        const totalTimeEl = card.querySelector('.total-time');
+        header.addEventListener('click', () => {
+            const expanded = card.classList.toggle('expanded');
+            controls.classList.toggle('hidden', !expanded);
+        });
+        playBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (audio.paused) {
+                audio.play();
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            } else {
+                audio.pause();
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+            }
+        });
+        audio.addEventListener('timeupdate', () => {
+            if (audio.duration) {
+                const pct = (audio.currentTime / audio.duration) * 100;
+                progressFill.style.width = pct + '%';
+                currentTimeEl.textContent = formatSeconds(audio.currentTime);
+            }
+        });
+        audio.addEventListener('ended', () => {
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+            progressFill.style.width = '0%';
+            currentTimeEl.textContent = '0:00';
+        });
+    }
   // Load custom recording details from cookies
   loadCustomRecordingDetails();
 

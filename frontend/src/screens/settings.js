@@ -164,8 +164,12 @@ export function renderSettingsScreen() {
 }
 
 export function setupSettingsEventListeners() {
-  // Load saved settings from cookies
-  loadSettingsFromCookies();
+  // First attempt remote fetch; fallback to cookies
+  attemptRemoteSettingsLoad().then(loaded => {
+    if (!loaded) {
+      loadSettingsFromCookies();
+    }
+  });
 
   // Handle slider value updates
   const sliders = ['voice-stability', 'voice-similarity', 'background-volume'];
@@ -227,10 +231,33 @@ export function setupSettingsEventListeners() {
     saveSettingsBtn.addEventListener('click', () => {
       // Save all current settings to cookies
       saveAllSettingsToCookies();
-      // TODO: Implement actual save functionality
-      console.log('Saving settings...');
-      // For now, just show a simple alert
-      alert('Settings saved successfully!');
+      // Collect settings
+      const payload = collectCurrentSettings();
+      const userId = getUserId();
+      if (!userId) {
+        alert('You must login before saving settings.');
+        return;
+      }
+      // Dynamic import to avoid circular deps (api.ts is TS, but Vite handles)
+      import('../api.ts').then(({ updateUserSettings }) => {
+        saveSettingsBtn.disabled = true;
+        const originalText = saveSettingsBtn.textContent;
+        saveSettingsBtn.textContent = 'Saving...';
+        updateUserSettings(userId, payload)
+          .then(() => {
+            console.log('Settings saved to backend', payload);
+            alert('Settings saved successfully!');
+          })
+          .catch(err => {
+            console.error(err);
+            const msg = err?.details?.detail || err.message || 'Failed to save settings';
+            alert(msg);
+          })
+          .finally(() => {
+            saveSettingsBtn.disabled = false;
+            saveSettingsBtn.textContent = originalText;
+          });
+      });
     });
   }
 }
@@ -316,4 +343,94 @@ function saveAllSettingsToCookies() {
       saveSettingToCookie(settingId, value);
     }
   });
+}
+
+async function attemptRemoteSettingsLoad() {
+  const userId = getUserId();
+  if (!userId) return false;
+  try {
+    const { getUserSettings } = await import('../api.ts');
+    const settings = await getUserSettings(userId);
+    applySettingsToUI(settings);
+    // Persist locally (cookies) for offline/fallback
+    Object.entries(settings).forEach(([k,v]) => {
+      // map back to UI ids where different
+      const idMap = {
+        voice_language: 'voice-language',
+        speaker_sex: 'speaker-sex',
+        voice_stability: 'voice-stability',
+        voice_similarity: 'voice-similarity',
+        background_sound: 'background-sound',
+        background_volume: 'background-volume',
+        voice_note_name: 'voice-note-name',
+        voice_note_date: 'voice-note-date'
+      };
+      const domKey = idMap[k] || k;
+  saveSettingToCookie(domKey, v);
+    });
+    return true;
+  } catch (err) {
+    console.warn('Remote settings load failed, using cookies fallback', err);
+    return false;
+  }
+}
+
+function applySettingsToUI(settings) {
+  const map = {
+    voice_language: 'voice-language',
+    speaker_sex: 'speaker-sex',
+    voice_stability: 'voice-stability',
+    voice_similarity: 'voice-similarity',
+    background_sound: 'background-sound',
+    background_volume: 'background-volume',
+    voice_note_name: 'voice-note-name',
+    voice_note_date: 'voice-note-date'
+  };
+  Object.entries(map).forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const val = settings[k];
+    if (el.type === 'checkbox') {
+      el.checked = !!val;
+    } else if (val !== undefined && val !== null) {
+      el.value = val;
+    }
+    if (el.classList.contains('setting-slider')) {
+      const span = document.getElementById(id + '-value');
+      if (span) span.textContent = el.value;
+    }
+  });
+}
+
+// Collect current DOM settings into backend payload shape
+function collectCurrentSettings() {
+  const getVal = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    if (el.type === 'checkbox') return el.checked;
+    return el.value;
+  };
+  return {
+    voice_language: getVal('voice-language') || 'en',
+    speaker_sex: getVal('speaker-sex') || 'male',
+    voice_stability: parseInt(getVal('voice-stability') || '50', 10),
+    voice_similarity: parseInt(getVal('voice-similarity') || '75', 10),
+    background_sound: !!getVal('background-sound'),
+    background_volume: parseInt(getVal('background-volume') || '30', 10),
+    voice_note_name: getVal('voice-note-name') || null,
+    voice_note_date: getVal('voice-note-date') || null,
+  };
+}
+
+// Retrieve user id (simple approach until JWT implemented)
+function getUserId() {
+  // Preferred: cookie 'user_id'
+  const fromCookie = getSettingFromCookie('user_id');
+  if (fromCookie) return fromCookie;
+  try {
+    const fromStorage = localStorage.getItem('user_id');
+    return fromStorage || null;
+  } catch (_) {
+    return null;
+  }
 }

@@ -1,5 +1,6 @@
 import { navigateToScreen } from '../navigation.js';
 import { loginUser } from '../api.ts';
+import { setUserCredits } from '../state.js';
 
 export function renderLoginScreen() {
   return `
@@ -56,7 +57,22 @@ async function performLogin(credentials) {
   submitBtn.textContent = 'Signing In...';
   submitBtn.disabled = true;
   try {
-    await loginUser(credentials);
+    const resp = await loginUser(credentials);
+    if (resp?.user_id) {
+      try { localStorage.setItem('user_id', resp.user_id); } catch(_) {}
+      // minimal cookie (1 year)
+      const expires = new Date();
+      expires.setFullYear(expires.getFullYear() + 1);
+      document.cookie = `user_id=${encodeURIComponent(resp.user_id)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+      // Prefetch meta (credits)
+      try {
+        const { getUserMeta } = await import('../api.ts');
+        const meta = await getUserMeta(resp.user_id);
+        if (meta) setUserCredits(meta.charCount, meta.monthlyLimit);
+      } catch (e) {
+        console.warn('Failed to prefetch user meta', e);
+      }
+    }
     navigateToScreen('home');
   } catch (err) {
     console.error(err);

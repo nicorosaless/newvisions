@@ -1,13 +1,13 @@
-import { getTokenData } from '../state.js';
+import { getUserCredits } from '../state.js';
 
 export function renderTokenScreen() {
-  const tokenInfo = getTokenData();
-  const usedTokens = tokenInfo.used;
-  const totalTokens = tokenInfo.total;
-  const remainingTokens = totalTokens - usedTokens;
-  const usagePercentage = ((usedTokens / totalTokens) * 100).toFixed(1);
+  const credits = getUserCredits();
+  const usedTokens = typeof credits.charCount === 'number' ? credits.charCount : 0;
+  const totalTokens = typeof credits.monthlyLimit === 'number' ? credits.monthlyLimit : 0;
+  const remainingTokens = totalTokens > 0 ? (totalTokens - usedTokens) : 0;
+  const usagePercentage = totalTokens > 0 ? ((usedTokens / totalTokens) * 100).toFixed(1) : '0.0';
   const now = new Date();
-  const resetDate = tokenInfo.resetDate;
+  const resetDate = credits.resetDate;
   const daysUntilReset = Math.ceil((resetDate - now) / (1000 * 60 * 60 * 24));
   const resetDateFormatted = resetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 
