@@ -126,6 +126,13 @@ export function renderSettingsScreen() {
           </div>
         </div>
       </div>
+      
+      <!-- Save Settings Button -->
+      <div class="settings-footer">
+        <button class="save-settings-btn" id="save-settings">
+          Save Settings
+        </button>
+      </div>
     </div>`;
 }
 
@@ -161,4 +168,28 @@ export function setupSettingsEventListeners() {
       console.log(`Setting changed: ${input.id} = ${input.value || input.checked}`);
     });
   });
+
+  // Handle background sound toggle to enable/disable volume slider
+  const backgroundSoundToggle = document.getElementById('background-sound');
+  const backgroundVolumeSlider = document.getElementById('background-volume');
+  if (backgroundSoundToggle && backgroundVolumeSlider) {
+    const updateVolumeSlider = () => {
+      backgroundVolumeSlider.disabled = !backgroundSoundToggle.checked;
+      backgroundVolumeSlider.style.opacity = backgroundSoundToggle.checked ? '1' : '0.5';
+    };
+    backgroundSoundToggle.addEventListener('change', updateVolumeSlider);
+    // Initial state
+    updateVolumeSlider();
+  }
+
+  // Handle save settings button
+  const saveSettingsBtn = document.getElementById('save-settings');
+  if (saveSettingsBtn) {
+    saveSettingsBtn.addEventListener('click', () => {
+      // TODO: Implement actual save functionality
+      console.log('Saving settings...');
+      // For now, just show a simple alert
+      alert('Settings saved successfully!');
+    });
+  }
 }
