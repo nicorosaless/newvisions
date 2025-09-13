@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from ..config import settings
+from backend.config import settings
 
 logger = logging.getLogger(__name__)
 

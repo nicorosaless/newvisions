@@ -1,6 +1,6 @@
 from typing import Optional
 
-from ..config import settings
+from backend.config import settings
 
 
 def _format_prompt(topic: str, value: str) -> str:
@@ -25,17 +25,23 @@ def generate_thought(topic: str, value: str) -> str:
     try:
         import google.generativeai as genai  # type: ignore
 
-        genai.configure(api_key=settings.google_api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        resp = model.generate_content(prompt)
+        # Some versions expose configure via genai.configure; keep guarded
+        if hasattr(genai, "configure"):
+            genai.configure(api_key=settings.google_api_key)  # type: ignore[attr-defined]
+        model = getattr(genai, "GenerativeModel", None)
+        if model is None:
+            raise RuntimeError("GenerativeModel not available in google.generativeai")
+        mdl = model("gemini-1.5-flash")
+        resp = mdl.generate_content(prompt)
         text: Optional[str] = getattr(resp, "text", None)
         if not text:
-            # Sometimes content parts may exist
             try:
-                text = "".join([p.text for p in resp.candidates[0].content.parts])  # type: ignore[attr-defined]
+                candidates = getattr(resp, "candidates", [])
+                if candidates:
+                    parts = getattr(candidates[0].content, "parts", [])  # type: ignore
+                    text = "".join([getattr(p, "text", "") for p in parts])
             except Exception:
                 text = None
         return text.strip() if text else f"Here's a quick thought about {topic}: {value}."
     except Exception:
-        # Silent fallback to keep API robust
         return f"Here's a quick thought about {topic}: {value}."
