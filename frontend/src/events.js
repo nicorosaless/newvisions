@@ -2,6 +2,7 @@ import { navigateToScreen } from './navigation.js';
 import { getCurrentScreen, getRoutineType } from './state.js';
 import { handleLogin } from './screens/login.js';
 import { handleSignup } from './screens/signup.js';
+import { setupResetPasswordEventListeners } from './screens/reset-password.js';
 import { setupSettingsEventListeners } from './screens/settings.js';
 import { setupVoiceCloneEventListeners } from './screens/voice-clone.js';
 import { setupRoutineSelectionEventListeners } from './screens/routine-selection.js';
@@ -19,7 +20,9 @@ export function setupEventListeners() {
   
   // Setup screen-specific listeners
   const currentScreen = getCurrentScreen();
-  if (currentScreen === 'settings') {
+  if (currentScreen === 'reset-password') {
+    setupResetPasswordEventListeners();
+  } else if (currentScreen === 'settings') {
     setupSettingsEventListeners();
   } else if (currentScreen === 'voice-clone') {
     setupVoiceCloneEventListeners();
@@ -42,6 +45,7 @@ function setupNavigationListeners() {
   const navigationButtons = [
     { id: 'show-signup', action: () => navigateToScreen('signup') },
     { id: 'show-login', action: () => navigateToScreen('login') },
+    { id: 'forgot-password', action: () => navigateToScreen('reset-password') },
     { id: 'logout-btn', action: () => navigateToScreen('login') },
     { id: 'test-btn', action: () => navigateToScreen('home') },
     { id: 'back-to-home', action: () => navigateToScreen('home') },

@@ -1,6 +1,7 @@
 import { getCurrentScreen, setCurrentScreen, getRoutineType, setRoutineType, getRoutineValue, setRoutineValue } from './state.js';
 import { renderLoginScreen } from './screens/login.js';
 import { renderSignupScreen } from './screens/signup.js';
+import { renderResetPasswordScreen } from './screens/reset-password.js';
 import { renderHomeScreen } from './screens/home.js';
 import { renderTokenScreen } from './screens/tokens.js';
 import { renderSettingsScreen } from './screens/settings.js';
@@ -21,6 +22,9 @@ export function renderScreen() {
       break;
     case 'signup':
       app.innerHTML = renderSignupScreen();
+      break;
+    case 'reset-password':
+      app.innerHTML = renderResetPasswordScreen();
       break;
     case 'home':
       app.innerHTML = renderHomeScreen();
@@ -93,7 +97,7 @@ function performScreenTransition(targetScreen) {
 
 function getCurrentScreenContainer() {
   const current = getCurrentScreen();
-  if (['login','signup'].includes(current)) return document.getElementById('auth-card');
+  if (['login','signup','reset-password'].includes(current)) return document.getElementById('auth-card');
   if (['home','tokens','settings','voice-clone'].includes(current)) return document.querySelector('.home-container, .tokens-page, .settings-container, .voice-clone-container');
   if (current === 'routine-selection') return document.querySelector('.routine-selection-container');
   if (current === 'text-input-routine') return document.querySelector('.text-input-routine-container');
@@ -120,7 +124,7 @@ function applyScrollPolicy(screen) {
 }
 
 function getNewScreenContainer(screen) {
-  if (['login','signup'].includes(screen)) return document.getElementById('auth-card');
+  if (['login','signup','reset-password'].includes(screen)) return document.getElementById('auth-card');
   if (screen === 'home') return document.querySelector('.home-container');
   if (screen === 'tokens') return document.querySelector('.tokens-page');
   if (screen === 'settings') return document.querySelector('.settings-container');

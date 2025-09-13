@@ -278,6 +278,17 @@ body.scroll-enabled html {
   text-decoration: underline;
 }
 
+/* Forgot Password Link - smaller and less prominent */
+.link-button.forgot-password {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.link-button.forgot-password:hover {
+  color: var(--primary-color);
+}
+
 /* Auth Footer */
 .auth-footer {
   text-align: center;
