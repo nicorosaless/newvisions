@@ -10,5 +10,6 @@ echo "📦 Installing dependencies (if needed)..."
 npm install --no-audit --no-fund
 
 export VITE_API_BASE_URL="$API_URL"
-echo "🌐 Frontend (npm run dev) expecting port $PORT (API=$API_URL)"
+export VITE_ENABLE_HTTPS=1
+echo "🌐 Frontend (npm run dev) expecting port $PORT (API=$API_URL) with HTTPS enabled"
 exec npm run dev -- --port $PORT --host
