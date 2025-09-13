@@ -75,7 +75,8 @@ export function setupTextInputRoutineEventListeners(routineType) {
 }
 
 function handleRoutinePerform(routineType, value) {
-  // For now, just show an alert with the selected value
-  alert(`${routineType.toUpperCase()} routine performed with: "${value}"`);
-  // TODO: Implement actual routine logic here
+  // Navigate to voice recording screen with the routine data
+  import('../navigation.js').then(({ navigateToScreen }) => {
+    navigateToScreen('voice-recording', routineType, value);
+  });
 }

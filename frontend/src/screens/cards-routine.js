@@ -154,6 +154,10 @@ function handleCardsRoutinePerform(value, suit) {
     diamonds: 'Diamonds'
   };
   
-  alert(`CARDS routine performed with: ${value} of ${suitNames[suit]}`);
-  // TODO: Implement actual routine logic here
+  const cardValue = `${value} of ${suitNames[suit]}`;
+  
+  // Navigate to voice recording screen with the routine data
+  import('../navigation.js').then(({ navigateToScreen }) => {
+    navigateToScreen('voice-recording', 'cards', cardValue);
+  });
 }

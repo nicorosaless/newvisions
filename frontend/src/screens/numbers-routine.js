@@ -127,6 +127,9 @@ export function setupNumbersRoutineEventListeners() {
 
 function handleNumbersRoutinePerform(firstDigit, secondDigit) {
   const twoDigitNumber = firstDigit + secondDigit;
-  alert(`NUMBERS routine performed with: ${twoDigitNumber}`);
-  // TODO: Implement actual routine logic here
+  
+  // Navigate to voice recording screen with the routine data
+  import('../navigation.js').then(({ navigateToScreen }) => {
+    navigateToScreen('voice-recording', 'numbers', twoDigitNumber);
+  });
 }

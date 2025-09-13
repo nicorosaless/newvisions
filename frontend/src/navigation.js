@@ -1,4 +1,4 @@
-import { getCurrentScreen, setCurrentScreen, getRoutineType, setRoutineType } from './state.js';
+import { getCurrentScreen, setCurrentScreen, getRoutineType, setRoutineType, getRoutineValue, setRoutineValue } from './state.js';
 import { renderLoginScreen } from './screens/login.js';
 import { renderSignupScreen } from './screens/signup.js';
 import { renderHomeScreen } from './screens/home.js';
@@ -10,6 +10,7 @@ import { renderTextInputRoutineScreen } from './screens/text-input-routine.js';
 import { renderCardsRoutineScreen } from './screens/cards-routine.js';
 import { renderNumbersRoutineScreen } from './screens/numbers-routine.js';
 import { renderStarSignsRoutineScreen } from './screens/star-signs-routine.js';
+import { renderVoiceRecordingScreen } from './screens/voice-recording.js';
 import { setupEventListeners } from './events.js';
 
 export function renderScreen() {
@@ -48,15 +49,21 @@ export function renderScreen() {
     case 'star-signs-routine':
       app.innerHTML = renderStarSignsRoutineScreen();
       break;
+    case 'voice-recording':
+      app.innerHTML = renderVoiceRecordingScreen(getRoutineType(), getRoutineValue());
+      break;
   }
   setupEventListeners();
   // Apply scroll policy immediately on render
   applyScrollPolicy(getCurrentScreen());
 }
 
-export function navigateToScreen(screen, routineType = null) { 
+export function navigateToScreen(screen, routineType = null, routineValue = null) { 
   if (routineType) {
     setRoutineType(routineType);
+  }
+  if (routineValue) {
+    setRoutineValue(routineValue);
   }
   performScreenTransition(screen); 
 }
@@ -93,6 +100,7 @@ function getCurrentScreenContainer() {
   if (current === 'cards-routine') return document.querySelector('.cards-routine-container');
   if (current === 'numbers-routine') return document.querySelector('.numbers-routine-container');
   if (current === 'star-signs-routine') return document.querySelector('.star-signs-routine-container');
+  if (current === 'voice-recording') return document.querySelector('.voice-recording-container');
   return null;
 }
 
@@ -102,7 +110,7 @@ function applyScrollPolicy(screen) {
   const lock = () => { body.classList.add('no-scroll'); html.classList.add('no-scroll'); body.classList.remove('scroll-enabled'); };
   const unlock = () => { body.classList.remove('no-scroll'); html.classList.remove('no-scroll'); };
   // screens that should be scrollable
-  const scrollable = ['settings', 'voice-clone', 'routine-selection', 'text-input-routine', 'cards-routine', 'numbers-routine', 'star-signs-routine'];
+  const scrollable = ['settings', 'voice-clone', 'routine-selection', 'text-input-routine', 'cards-routine', 'numbers-routine', 'star-signs-routine', 'voice-recording'];
   if (scrollable.includes(screen)) {
     unlock();
     body.classList.add('scroll-enabled');
@@ -122,5 +130,6 @@ function getNewScreenContainer(screen) {
   if (screen === 'cards-routine') return document.querySelector('.cards-routine-container');
   if (screen === 'numbers-routine') return document.querySelector('.numbers-routine-container');
   if (screen === 'star-signs-routine') return document.querySelector('.star-signs-routine-container');
+  if (screen === 'voice-recording') return document.querySelector('.voice-recording-container');
   return null;
 }

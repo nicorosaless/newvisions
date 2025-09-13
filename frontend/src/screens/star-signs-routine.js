@@ -91,6 +91,8 @@ export function setupStarSignsRoutineEventListeners() {
 }
 
 function handleStarSignsRoutinePerform(sign) {
-  alert(`STAR SIGNS routine performed with: ${sign}`);
-  // TODO: Implement actual routine logic here
+  // Navigate to voice recording screen with the routine data
+  import('../navigation.js').then(({ navigateToScreen }) => {
+    navigateToScreen('voice-recording', 'star-signs', sign);
+  });
 }

@@ -9,6 +9,7 @@ import { setupTextInputRoutineEventListeners } from './screens/text-input-routin
 import { setupCardsRoutineEventListeners } from './screens/cards-routine.js';
 import { setupNumbersRoutineEventListeners } from './screens/numbers-routine.js';
 import { setupStarSignsRoutineEventListeners } from './screens/star-signs-routine.js';
+import { setupVoiceRecordingEventListeners } from './screens/voice-recording.js';
 
 export function setupEventListeners() {
   setupNavigationListeners();
@@ -32,6 +33,8 @@ export function setupEventListeners() {
     setupNumbersRoutineEventListeners();
   } else if (currentScreen === 'star-signs-routine') {
     setupStarSignsRoutineEventListeners();
+  } else if (currentScreen === 'voice-recording') {
+    setupVoiceRecordingEventListeners();
   }
 }
 
@@ -43,7 +46,8 @@ function setupNavigationListeners() {
     { id: 'test-btn', action: () => navigateToScreen('home') },
     { id: 'back-to-home', action: () => navigateToScreen('home') },
     { id: 'back-to-settings', action: () => navigateToScreen('settings') },
-    { id: 'back-to-routine-selection', action: () => navigateToScreen('routine-selection') }
+    { id: 'back-to-routine-selection', action: () => navigateToScreen('routine-selection') },
+    { id: 'back-to-routine', action: () => navigateToScreen('routine-selection') }
   ];
   navigationButtons.forEach(({ id, action }) => {
     const button = document.getElementById(id);
