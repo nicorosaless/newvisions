@@ -85,7 +85,7 @@ export function renderVoiceCloneScreen() {
                     <div class="wave-bar"></div>
                     <div class="wave-bar"></div>
                     <div class="wave-bar"></div>
-                    <div class="wave-bar"></div>
+                    class="wave-bar"></div>
                   </div>
                 </div>
                 <audio controls id="recorded-audio" class="audio-player">
@@ -151,6 +151,59 @@ export function renderVoiceCloneScreen() {
 export function setupVoiceCloneEventListeners() {
   console.log('Setting up voice clone event listeners');
   
+  // NEW: fetch meta to condition UI (single clone per user)
+  const userId = (document.cookie.match(/user_id=([^;]+)/) || [])[1] || localStorage.getItem('user_id');
+  if (userId) {
+    (async () => {
+      try {
+        const { apiClient } = await import('../api.ts');
+        const meta = await apiClient.getUserVoiceMeta(userId).catch(() => null);
+        if (meta && meta.hasClone) {
+          // Hide recording instructions title text to emphasize existing sample reuse
+          const instructionTitle = document.querySelector('.instruction-title');
+          if (instructionTitle) instructionTitle.textContent = 'Your Voice Clone is Ready';
+          const instructionDesc = document.querySelector('.instruction-description');
+          if (instructionDesc) instructionDesc.textContent = 'You can listen to your current sample or record a new one to update it.';
+          // Load existing sample audio
+            const source = await apiClient.getUserVoiceSource(userId).catch(() => null);
+            if (source && source.audio_base64) {
+              const playbackSection = document.getElementById('playback-section');
+              const recordedAudio = document.getElementById('recorded-audio');
+              const generateButton = document.getElementById('generate-voice-clone');
+              const recordingStatus = document.getElementById('recording-status');
+              if (playbackSection) playbackSection.style.display = 'block';
+              if (recordingStatus) {
+                recordingStatus.style.display = 'block';
+                const statusText = recordingStatus.querySelector('.status-text');
+                if (statusText) statusText.textContent = 'Current sample loaded';
+              }
+              if (recordedAudio) {
+                try {
+                  const blob = base64ToBlob(source.audio_base64, source.mime || 'audio/mpeg');
+                  const url = URL.createObjectURL(blob);
+                  recordedAudio.src = url;
+                } catch (e) { console.warn('Failed to set existing sample audio', e); }
+              }
+              if (generateButton) {
+                generateButton.textContent = 'Update Voice Sample';
+              }
+            }
+        }
+      } catch (e) {
+        console.warn('Voice meta init error', e);
+      }
+    })();
+  }
+  
+  // helper for converting base64 (no data URI) to blob
+  function base64ToBlob(b64, mime) {
+    const byteChars = atob(b64);
+    const len = byteChars.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = byteChars.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+
   let mediaRecorder = null;
   let recordedChunks = [];
   let recordingStartTime = null;
@@ -671,12 +724,16 @@ export function setupVoiceCloneEventListeners() {
         const { uploadUserVoice } = await import('../api.ts');
         const resp = await uploadUserVoice(userId, base64, mimeType, durationSeconds || undefined);
         processingSection.style.display = 'none';
-    if (recordingStatus) {
-      const statusText = recordingStatus.querySelector('.status-text');
-  if (statusText) statusText.textContent = 'Voice clone saved successfully (' + (durationSeconds ? durationSeconds.toFixed(1) + 's' : '') + ')';
-      recordingStatus.style.color = '#2ed573';
-      recordingStatus.style.display = 'block';
-    }
+        const shortId = (userId || '').substring(0,6);
+        if (recordingStatus) {
+          const statusText = recordingStatus.querySelector('.status-text');
+          if (statusText) {
+            const durationLabel = durationSeconds ? durationSeconds.toFixed(1) + 's' : '';
+            statusText.textContent = 'Voice clone saved: user_' + shortId + ' ' + (durationLabel ? '('+durationLabel+')' : '');
+          }
+          recordingStatus.style.color = '#2ed573';
+          recordingStatus.style.display = 'block';
+        }
       } catch (e) {
         console.error('Voice upload failed', e);
         processingSection.style.display = 'none';

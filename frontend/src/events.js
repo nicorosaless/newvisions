@@ -51,7 +51,8 @@ function setupNavigationListeners() {
     { id: 'back-to-home', action: () => navigateToScreen('home') },
     { id: 'back-to-settings', action: () => navigateToScreen('settings') },
     { id: 'back-to-routine-selection', action: () => navigateToScreen('routine-selection') },
-    { id: 'back-to-routine', action: () => navigateToScreen('routine-selection') }
+    { id: 'back-to-routine', action: () => navigateToScreen('routine-selection') },
+    { id: 'edit-recordings', action: () => navigateToScreen('home') }
   ];
   navigationButtons.forEach(({ id, action }) => {
     const button = document.getElementById(id);
@@ -76,7 +77,6 @@ function setupFormListeners() {
 
 function setupActionListeners() {
   const actionButtons = [
-    { id: 'perform-btn', action: () => navigateToScreen('routine-selection') },
     { id: 'tutorial-btn', action: () => showComingSoonAlert('Tutorial functionality') },
     { id: 'settings-btn', action: () => navigateToScreen('settings') }
   ];
@@ -84,6 +84,51 @@ function setupActionListeners() {
     const button = document.getElementById(id);
     if (button) button.addEventListener('click', action);
   });
+
+  // Perform button gating by voice clone presence
+  const performBtn = document.getElementById('perform-btn');
+  if (performBtn) {
+    performBtn.addEventListener('click', async () => {
+      try {
+        const userId = getUserId();
+        if (!userId) {
+          alert('Please log in again.');
+          navigateToScreen('login');
+          return;
+        }
+        const { apiClient } = await import('./api.ts');
+        const meta = await apiClient.getUserVoiceMeta(userId).catch(() => null);
+        if (!meta) {
+          alert('Unable to verify voice status. Try again.');
+          return;
+        }
+        if (!meta.hasClone) {
+          if (!meta.hasSample) {
+            if (confirm('You must record a 30–60s voice sample before performing. Go to voice clone setup now?')) {
+              navigateToScreen('voice-clone');
+            }
+            return;
+          }
+          // Has sample but clone not ready (creation failed or pending)
+          alert('Your voice clone is not ready yet. Please wait a moment and try again.');
+          return;
+        }
+        // Touch pool to mark as MRU before rutina selection
+        try { await apiClient.touchVoicePool(userId); } catch (_) { /* non-fatal */ }
+        navigateToScreen('routine-selection');
+      } catch (e) {
+        console.warn('Perform gating error', e);
+        alert('Error checking voice clone. Try again.');
+      }
+    });
+  }
+}
+
+// Local helper to retrieve user id consistently (duplicated logic kept lightweight)
+function getUserId() {
+  const match = document.cookie.match(/(?:^|; )user_id=([^;]+)/);
+  if (match) return decodeURIComponent(match[1]);
+  try { return localStorage.getItem('user_id'); } catch (_) { return null; }
 }
 
 function setupInputAnimations() {

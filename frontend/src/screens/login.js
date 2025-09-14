@@ -72,6 +72,26 @@ async function performLogin(credentials) {
       } catch (e) {
         console.warn('Failed to prefetch user meta', e);
       }
+      // Prefetch user settings (for instant title/date in recordings)
+      try {
+        const { getUserSettings } = await import('../api.ts');
+        const settings = await getUserSettings(resp.user_id);
+        if (settings) {
+          const map = {
+            voice_note_name: 'voice-note-name',
+            voice_note_date: 'voice-note-date',
+            voice_note_name_default: 'voice-note-name-default'
+          };
+          const cookieExpire = new Date(); cookieExpire.setFullYear(cookieExpire.getFullYear() + 1);
+          Object.entries(map).forEach(([backendKey, cookieKey]) => {
+            if (settings[backendKey] !== undefined && settings[backendKey] !== null) {
+              document.cookie = `${cookieKey}=${encodeURIComponent(settings[backendKey])}; expires=${cookieExpire.toUTCString()}; path=/; SameSite=Lax`;
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Settings prefetch failed (non-critical)', e);
+      }
     }
     navigateToScreen('home');
   } catch (err) {

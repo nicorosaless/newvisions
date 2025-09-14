@@ -32,6 +32,7 @@ class UserSettings(BaseModel):
     background_volume: int = Field(ge=0, le=100, default=30)
     voice_note_name: Optional[str] = Field(default=None, max_length=50)
     voice_note_date: Optional[str] = Field(default=None, description="ISO date string YYYY-MM-DD")
+    voice_note_name_default: bool = Field(default=False, description="If true, ignore custom name and use 'Recording on {date}' pattern")
 
 
 class SettingsUpdateRequest(UserSettings):
@@ -54,3 +55,5 @@ class PerformResponse(BaseModel):
     charCount: int
     monthlyLimit: int
     voiceSource: Optional[str] = Field(default=None, description="Source of voice audio: user|placeholder|tts")
+    charsUsedRaw: int = Field(description="Caracteres generados reales antes de factor coste")
+    charsUsedEffective: int = Field(description="Caracteres efectivos contados (post factor coste)")

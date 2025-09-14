@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Callable, Any
 from pymongo import MongoClient  # type: ignore
@@ -133,12 +134,47 @@ def synthesize_with_user_voice(text: str, user_id: str, db=None, user_sample: Op
             from elevenlabs.client import ElevenLabs  # type: ignore
             from elevenlabs import VoiceSettings  # type: ignore
             client = ElevenLabs(api_key=api_key)
-            vs = VoiceSettings(stability=0.5, similarity_boost=0.75, style=0.3, use_speaker_boost=True)
+            # Dynamic settings from user profile (0-100 ints mapped to 0-1 floats)
+            stability = 0.5
+            similarity = 0.75
+            style = 0.3
+            speed = None
+            if db is not None:
+                try:
+                    from bson import ObjectId  # type: ignore
+                    oid = ObjectId(user_id)
+                    u = db["users"].find_one({"_id": oid}, {"settings": 1}) or {}
+                    s = (u.get("settings") or {})
+                    def pct_to_float(val, default):
+                        try:
+                            if val is None:
+                                return default
+                            f = float(val)
+                            if f > 1.0:
+                                f = max(0.0, min(100.0, f)) / 100.0
+                            else:
+                                f = max(0.0, min(1.0, f))
+                            return f
+                        except Exception:
+                            return default
+                    stability = pct_to_float(s.get("voice_stability"), stability)
+                    similarity = pct_to_float(s.get("voice_similarity"), similarity)
+                    # Optionally map background_volume to style accentuation (light heuristic)
+                    if "background_volume" in s:
+                        style = pct_to_float(s.get("background_volume"), style) * 0.4  # keep style moderate
+                    # Future: speed mapping (if user setting available)
+                except Exception as e:
+                    print({"event": "voice_clone_settings_error", "error": str(e)})
+            vs = VoiceSettings(stability=stability, similarity_boost=similarity, style=style, use_speaker_boost=True, speed=speed)
+            print({"event": "voice_clone_settings", "user_id": user_id, "voice_id": voice_id, "stability": stability, "similarity": similarity, "style": style, "speed": speed})
+            model_id = settings.elevenlabs_model
+            print({"event": "voice_clone_model_selected", "user_id": user_id, "voice_id": voice_id, "model_id": model_id})
             audio = client.text_to_speech.convert(
                 voice_id=voice_id,
                 optimize_streaming_latency=0,
                 output_format="mp3_44100_128",
                 text=text,
+                model_id=model_id,
                 voice_settings=vs,
             )
             if isinstance(audio, (bytes, bytearray)):
@@ -171,13 +207,21 @@ def create_persistent_voice_clone(user_id: str, sample_bytes: bytes, db=None) ->
     if not settings.elevenlabs_api_key:
         existing_stub = get_user_voice_id(user_id)
         if existing_stub and existing_stub.startswith("stub_"):
+            # Ensure provider metadata exists
+            if db is not None:
+                try:
+                    from bson import ObjectId  # type: ignore
+                    oid = ObjectId(user_id)
+                    db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_provider": "stub"}})
+                except Exception:
+                    pass
             return existing_stub
         synthetic_id = f"stub_{user_id[:6]}"
         if db is not None:
             try:
                 from bson import ObjectId  # type: ignore
                 oid = ObjectId(user_id)
-                db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_id": synthetic_id}})
+                db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_id": synthetic_id, "voice_clone_provider": "stub"}})
                 if settings.elevenlabs_pool_enabled:
                     pool = get_voice_pool(db)
                     pool.ensure_voice(synthetic_id, user_id)
@@ -220,12 +264,23 @@ def create_persistent_voice_clone(user_id: str, sample_bytes: bytes, db=None) ->
                     voice_id = f"stub_{user_id[:6]}"
                 else:
                     return None
+            # Rename voice so name == voice_id (idempotent) only if real (not stub_)
+            if not voice_id.startswith("stub_"):
+                try:
+                    rename_payload = {"name": voice_id, "description": "user persistent voice"}
+                    r2 = requests.post(f"https://api.elevenlabs.io/v1/voices/{voice_id}", headers={"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"}, json=rename_payload, timeout=30)
+                    if r2.status_code >= 400:
+                        print({"event": "voice_clone_rename_warning", "voice_id": voice_id, "status": r2.status_code, "body": r2.text[:120]})
+                    else:
+                        print({"event": "voice_clone_renamed", "voice_id": voice_id})
+                except Exception as re:
+                    print({"event": "voice_clone_rename_error", "voice_id": voice_id, "error": str(re)})
         # Persistir en user
         if db is not None:
             try:
                 from bson import ObjectId  # type: ignore
                 oid = ObjectId(user_id)
-                db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_id": voice_id}})
+                db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_id": voice_id, "voice_clone_provider": ("elevenlabs" if not voice_id.startswith("stub_") else "stub")}})
             except Exception as e:
                 print({"event": "voice_clone_error", "stage": "persist_user", "error": str(e)})
         # Insertar en pool como MRU
@@ -237,6 +292,127 @@ def create_persistent_voice_clone(user_id: str, sample_bytes: bytes, db=None) ->
                 print({"event": "voice_pool_error", "stage": "ensure_new", "error": str(e)})
         print({"event": "voice_clone", "stage": "created", "voice_id": voice_id})
         return voice_id
+    finally:
+        try:
+            if 'path' in locals() and os.path.exists(path):
+                os.remove(path)
+        except Exception:
+            pass
+
+
+def promote_stub_to_real_clone(user_id: str, sample_bytes: bytes, db=None) -> Optional[str]:
+    """Si el usuario tiene un stub_ y ahora existe API key, crear clon real y reemplazar.
+    Devuelve nuevo voice_id real o None si falla (mantiene stub en ese caso).
+    """
+    if not sample_bytes or not settings.elevenlabs_api_key:
+        return None
+    existing = get_user_voice_id(user_id)
+    if not existing or not existing.startswith("stub_"):
+        return None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+            tmp.write(sample_bytes)
+            path = tmp.name
+        headers = {"xi-api-key": settings.elevenlabs_api_key}
+        files = [("files", (f"user_{user_id[:6]}.mp3", open(path, "rb"), "audio/mpeg"))]
+        data = {"name": f"user_{user_id[:6]}", "description": "user persistent voice", "labels": "{}"}
+        resp = requests.post("https://api.elevenlabs.io/v1/voices/add", headers=headers, files=files, data=data, timeout=90)
+        try:
+            resp.raise_for_status()
+        except Exception:
+            print({"event": "voice_clone_error", "stage": "promote_create", "status": resp.status_code, "body": resp.text[:200]})
+            return None
+        new_voice_id = resp.json().get("voice_id")
+        if not new_voice_id:
+            print({"event": "voice_clone_error", "stage": "promote_parse", "body": resp.text[:200]})
+            return None
+        # Rename (idempotent) name -> voice_id
+        try:
+            rename_payload = {"name": new_voice_id, "description": "user persistent voice"}
+            r2 = requests.post(f"https://api.elevenlabs.io/v1/voices/{new_voice_id}", headers={"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"}, json=rename_payload, timeout=30)
+            if r2.status_code >= 400:
+                print({"event": "voice_clone_rename_warning", "voice_id": new_voice_id, "status": r2.status_code, "body": r2.text[:120]})
+            else:
+                print({"event": "voice_clone_renamed", "voice_id": new_voice_id})
+        except Exception as re:
+            print({"event": "voice_clone_rename_error", "voice_id": new_voice_id, "error": str(re)})
+        if db is not None:
+            try:
+                from bson import ObjectId
+                oid = ObjectId(user_id)
+                db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_id": new_voice_id, "voice_clone_provider": "elevenlabs", "updated_at": datetime.utcnow()}})
+            except Exception as e:
+                print({"event": "voice_clone_error", "stage": "promote_persist", "error": str(e)})
+        if db is not None and settings.elevenlabs_pool_enabled:
+            try:
+                pool = get_voice_pool(db)
+                pool.ensure_voice(new_voice_id, user_id)
+            except Exception as e:
+                print({"event": "voice_pool_error", "stage": "promote_pool", "error": str(e)})
+        print({"event": "voice_clone", "stage": "promoted_stub", "old": existing, "new": new_voice_id})
+        return new_voice_id
+    finally:
+        try:
+            if 'path' in locals() and os.path.exists(path):
+                os.remove(path)
+        except Exception:
+            pass
+
+
+def update_existing_real_clone(user_id: str, sample_bytes: bytes, db=None) -> bool:
+    """Actualiza (re-entrena) un clon real existente subiendo nueva muestra.
+    ElevenLabs no soporta edición directa simple en todas las modalidades; mientras tanto se podría:
+    - Crear nueva voz y opcionalmente borrar la anterior (estrategia simple v1)
+    Aquí implementamos estrategia v1: crear nueva y sustituir.
+    """
+    if not sample_bytes or not settings.elevenlabs_api_key:
+        return False
+    current = get_user_voice_id(user_id)
+    if not current or current.startswith("stub_"):
+        return False
+    # Crear nueva y reemplazar (mantener antigua sin borrar remoto todavía)
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+            tmp.write(sample_bytes)
+            path = tmp.name
+        headers = {"xi-api-key": settings.elevenlabs_api_key}
+        files = [("files", (f"user_{user_id[:6]}_upd.mp3", open(path, "rb"), "audio/mpeg"))]
+        data = {"name": f"user_{user_id[:6]}_v2", "description": "user updated voice", "labels": "{}"}
+        resp = requests.post("https://api.elevenlabs.io/v1/voices/add", headers=headers, files=files, data=data, timeout=90)
+        try:
+            resp.raise_for_status()
+        except Exception:
+            print({"event": "voice_clone_error", "stage": "update_create", "status": resp.status_code, "body": resp.text[:200]})
+            return False
+        new_voice_id = resp.json().get("voice_id")
+        if not new_voice_id:
+            print({"event": "voice_clone_error", "stage": "update_parse", "body": resp.text[:200]})
+            return False
+        # Rename updated voice to enforce invariant
+        try:
+            rename_payload = {"name": new_voice_id, "description": "user updated voice"}
+            r2 = requests.post(f"https://api.elevenlabs.io/v1/voices/{new_voice_id}", headers={"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"}, json=rename_payload, timeout=30)
+            if r2.status_code >= 400:
+                print({"event": "voice_clone_rename_warning", "voice_id": new_voice_id, "status": r2.status_code, "body": r2.text[:120]})
+            else:
+                print({"event": "voice_clone_renamed", "voice_id": new_voice_id})
+        except Exception as re:
+            print({"event": "voice_clone_rename_error", "voice_id": new_voice_id, "error": str(re)})
+        if db is not None:
+            try:
+                from bson import ObjectId
+                oid = ObjectId(user_id)
+                db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_id": new_voice_id, "voice_clone_previous_id": current, "voice_clone_provider": "elevenlabs", "updated_at": datetime.utcnow()}})
+            except Exception as e:
+                print({"event": "voice_clone_error", "stage": "update_persist", "error": str(e)})
+        if db is not None and settings.elevenlabs_pool_enabled:
+            try:
+                pool = get_voice_pool(db)
+                pool.ensure_voice(new_voice_id, user_id)
+            except Exception as e:
+                print({"event": "voice_pool_error", "stage": "update_pool", "error": str(e)})
+        print({"event": "voice_clone", "stage": "updated_clone", "old": current, "new": new_voice_id})
+        return True
     finally:
         try:
             if 'path' in locals() and os.path.exists(path):

@@ -21,13 +21,23 @@ class Settings:
     # AI Providers
     elevenlabs_api_key: Optional[str] = os.getenv("ELEVEN_LABS_API_KEY")
     elevenlabs_voice_id: Optional[str] = os.getenv("ELEVEN_LABS_VOICE_ID")
-    elevenlabs_model: str = os.getenv("ELEVEN_LABS_MODEL", "eleven_turbo_v2_5")
+    # Allow legacy env var name without underscore for compatibility
+    _raw_model = os.getenv("ELEVEN_LABS_MODEL") or "eleven_turbo_v2_5"
+    if _raw_model:
+        _raw_model = _raw_model.strip()
+    if not _raw_model:
+        _raw_model = "eleven_turbo_v2_5"
+    elevenlabs_model: str = _raw_model
     # Pool de voces persistentes (limitado por tier ElevenLabs)
     elevenlabs_pool_enabled: bool = True
     elevenlabs_pool_capacity: int = 10  # valor por defecto; puede variar según tier
     elevenlabs_pool_ttl_minutes: int = 30  # tiempo de inactividad para considerar elegible limpieza
     elevenlabs_pool_eviction_strategy: str = "lru"  # reservado para futuras estrategias (lfu, ttl)
     google_api_key: Optional[str] = os.getenv("GOOGLE_API_KEY")
+
+    # Provider-backed pool (nuevo) - feature flag independiente para migración
+    provider_pool_enabled: bool = os.getenv("PROVIDER_POOL_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    provider_pool_capacity: int = int(os.getenv("PROVIDER_POOL_CAPACITY", "10"))
 
     # Data
     mongo_uri: Optional[str] = os.getenv("MONGO_URI")

@@ -88,3 +88,30 @@ def test_perform_char_limit():
         "value": "short"
     })
     assert resp.status_code in (200, 429)
+
+
+def test_perform_uses_voice_note_prompt_structure():
+    user_id = create_user("promptuser")
+    # Upload voice sample to enable clone creation (stub path)
+    fake_mp3 = b"ID3" + b"\x00" * 4000
+    import base64 as b64
+    up = client.post(f"/users/{user_id}/voice", json={
+        "audio_base64": b64.b64encode(fake_mp3).decode(),
+        "mime_type": "audio/mpeg",
+        "duration_seconds": 32
+    })
+    assert up.status_code == 200, up.text
+    # Perform with routine_type acting as topic; value must appear in text
+    value = "mariposa_azul"
+    resp = client.post("/perform", json={
+        "user_id": user_id,
+        "routine_type": "dream",  # conceptual guiding topic (should not be literally named if model obeys)
+        "value": value
+    })
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    # Basic assertions: text contains value, is not excessively long, and audio present
+    assert value in data["text"], data["text"]
+    assert len(data["text"]) < 280  # ~2 short sentences upper bound
+    assert data["voiceSource"] == "provider_voice_id"
+    assert len(data["audio_base64"]) > 10
