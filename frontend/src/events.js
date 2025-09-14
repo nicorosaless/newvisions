@@ -47,12 +47,6 @@ function setupNavigationListeners() {
     { id: 'show-login', action: () => navigateToScreen('login') },
     { id: 'forgot-password', action: () => navigateToScreen('reset-password') },
     { id: 'logout-btn', action: () => { import('./main.js').then(m => m.signOut()); } },
-    { id: 'continue-browser', action: () => { 
-      // Mark that user chose to continue in browser, then proceed to normal app flow
-      localStorage.setItem('continue_in_browser', 'true');
-      // Re-initialize app to go through normal login flow
-      import('./main.js').then(m => m.initializeApp()); 
-    }},
     { id: 'back-to-home', action: () => navigateToScreen('home') },
     { id: 'back-to-settings', action: () => navigateToScreen('settings') },
     { id: 'back-to-routine-selection', action: () => navigateToScreen('routine-selection') },

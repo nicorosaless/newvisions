@@ -2,40 +2,7 @@ import './style.css';
 import { renderScreen, navigateToScreen } from './navigation.js';
 import { setCurrentScreen } from './state.js';
 
-// PWA detection function
-function isPWA() {
-  // Check if running in standalone mode (installed PWA)
-  if (window.matchMedia('(display-mode: standalone)').matches) {
-    return true;
-  }
-
-  // iOS Safari standalone check
-  if (window.navigator.standalone === true) {
-    return true;
-  }
-
-  // Check if launched from home screen (some Android browsers)
-  if (window.location.search.includes('source=pwa')) {
-    return true;
-  }
-
-  return false;
-}
-
 async function initializeApp() {
-  // First check if running as PWA or user has chosen to continue in browser
-  const continueInBrowser = localStorage.getItem('continue_in_browser') === 'true';
-  
-  if (!isPWA() && !continueInBrowser) {
-    console.log('App accessed from browser, showing PWA install screen');
-    setCurrentScreen('pwa-install');
-    renderScreen();
-    return;
-  }
-
-  // Continue with normal app initialization
-  console.log('App running as PWA or user chose browser mode, proceeding with normal initialization');
-
   // Check if user is already logged in via cookie, but respect sign-out preference
   const userId = getCookieValue('user_id') || localStorage.getItem('user_id');
   const signedOut = localStorage.getItem('signed_out') === 'true';
@@ -124,7 +91,5 @@ export function signOut() {
 
 // Fallback global for inline onclick
 window.handleCreditsClick = function() { navigateToScreen('tokens'); };
-
-export { initializeApp };
 
 initializeApp();
