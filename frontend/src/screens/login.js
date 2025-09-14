@@ -57,6 +57,8 @@ async function performLogin(credentials) {
     const resp = await loginUser(credentials);
     if (resp?.user_id) {
       try { localStorage.setItem('user_id', resp.user_id); } catch(_) {}
+      // Clear sign-out flag since user is logging in again
+      localStorage.removeItem('signed_out');
       // minimal cookie (1 year)
       const expires = new Date();
       expires.setFullYear(expires.getFullYear() + 1);
