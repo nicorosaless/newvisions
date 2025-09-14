@@ -32,9 +32,6 @@ export function renderLoginScreen() {
           <p>
             <button type="button" class="link-button forgot-password" id="forgot-password">Forgot Password?</button>
           </p>
-          <div class="test-section">
-            <button type="button" class="test-button" id="test-btn">Test</button>
-          </div>
         </div>
       </div>
     </div>`;
