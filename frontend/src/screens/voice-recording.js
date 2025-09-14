@@ -528,6 +528,8 @@ export function setupVoiceRecordingEventListeners() {
         const progressFill = card.querySelector('.progress-fill');
         const currentTimeEl = card.querySelector('.current-time');
         const totalTimeEl = card.querySelector('.total-time');
+        
+        // Add click event listener for card expansion
         card.addEventListener('click', (e) => {
             // Don't expand if clicking on control buttons
             if (e.target.closest('.playback-controls')) {
@@ -555,31 +557,69 @@ export function setupVoiceRecordingEventListeners() {
                 controls.classList.remove('hidden');
             }
         });
-        playBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (audio.paused) {
-                audio.play();
-                playIcon.classList.add('hidden');
-                pauseIcon.classList.remove('hidden');
+        card.addEventListener('click', (e) => {
+            // Don't expand if clicking on control buttons
+            if (e.target.closest('.playback-controls')) {
+                return;
+            }
+            
+            // Close all other expanded cards
+            document.querySelectorAll('.recording-card.expanded').forEach(otherCard => {
+                if (otherCard !== card) {
+                    otherCard.classList.remove('expanded');
+                    const otherControls = otherCard.querySelector('.playback-controls');
+                    otherControls.classList.add('hidden');
+                }
+            });
+            
+            // Toggle current card
+            const isExpanded = card.classList.contains('expanded');
+            const controls = card.querySelector('.playback-controls');
+            
+            if (isExpanded) {
+                card.classList.remove('expanded');
+                controls.classList.add('hidden');
             } else {
-                audio.pause();
-                playIcon.classList.remove('hidden');
-                pauseIcon.classList.add('hidden');
+                card.classList.add('expanded');
+                controls.classList.remove('hidden');
             }
         });
-        audio.addEventListener('timeupdate', () => {
-            if (audio.duration) {
-                const pct = (audio.currentTime / audio.duration) * 100;
-                progressFill.style.width = pct + '%';
-                currentTimeEl.textContent = formatSeconds(audio.currentTime);
-            }
-        });
-        audio.addEventListener('ended', () => {
-            playIcon.classList.remove('hidden');
-            pauseIcon.classList.add('hidden');
-            progressFill.style.width = '0%';
-            currentTimeEl.textContent = '0:00';
-        });
+        
+        // Add play/pause functionality
+        if (playBtn) {
+            playBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (audio && audio.paused) {
+                    audio.play();
+                    playIcon.classList.add('hidden');
+                    pauseIcon.classList.remove('hidden');
+                } else if (audio) {
+                    audio.pause();
+                    playIcon.classList.remove('hidden');
+                    pauseIcon.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Add audio event listeners
+        if (audio) {
+            audio.addEventListener('timeupdate', () => {
+                if (audio.duration && progressFill && currentTimeEl) {
+                    const pct = (audio.currentTime / audio.duration) * 100;
+                    progressFill.style.width = pct + '%';
+                    currentTimeEl.textContent = formatSeconds(audio.currentTime);
+                }
+            });
+            
+            audio.addEventListener('ended', () => {
+                if (playIcon && pauseIcon && progressFill && currentTimeEl) {
+                    playIcon.classList.remove('hidden');
+                    pauseIcon.classList.add('hidden');
+                    progressFill.style.width = '0%';
+                    currentTimeEl.textContent = '0:00';
+                }
+            });
+        }
     }
     // (Removed call to loadCustomRecordingDetails)
 
