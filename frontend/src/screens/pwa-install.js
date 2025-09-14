@@ -11,7 +11,7 @@ export function renderPWAInstallScreen() {
         
         <div class="install-instructions">
           <div class="instruction-section">
-            <h2>📱 On iPhone/iPad (Safari)</h2>
+            <h2>On iPhone/iPad (Safari)</h2>
             <ol class="instruction-list">
               <li>Tap the <strong>Share</strong> button <span class="share-icon">⬆️</span> at the bottom of the screen</li>
               <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
@@ -21,7 +21,7 @@ export function renderPWAInstallScreen() {
           </div>
           
           <div class="instruction-section">
-            <h2>🤖 On Android (Chrome)</h2>
+            <h2>On Android (Chrome)</h2>
             <ol class="instruction-list">
               <li>Tap the <strong>Menu</strong> button <span class="menu-icon">⋮</span> (three dots)</li>
               <li>Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong></li>
