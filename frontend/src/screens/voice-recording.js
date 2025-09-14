@@ -423,7 +423,12 @@ export function setupVoiceRecordingEventListeners() {
 
     async function triggerPerformPipeline(userId, routineType, routineValue) {
         const container = document.querySelector('.recordings-container');
-        if (!container) return;
+        console.log('Container found for card creation:', container);
+        
+        if (!container) {
+            console.error('No recordings container found!');
+            return;
+        }
         // Crear tarjeta inmediatamente (titulo/fecha del usuario)
         let customName = getCookieValue('voice-note-name');
         let customDateISO = getCookieValue('voice-note-date');
@@ -441,6 +446,8 @@ export function setupVoiceRecordingEventListeners() {
         const titleText = (defaultToggle ? null : customName) || `Recording on ${subtitleDate}`;
         const card = document.createElement('div');
         card.className = 'recording-card generated pending';
+        console.log('Created card element:', card);
+        
         card.innerHTML = `
             <div class="recording-main">
                 <div class="recording-header">
@@ -488,12 +495,84 @@ export function setupVoiceRecordingEventListeners() {
                 </div>
                 <audio class="generated-audio" preload="auto" style="display:none"></audio>
             </div>`;
+        console.log('About to prepend card to container');
         container.prepend(card);
-        console.log('Card created and added to container:', card);
-        console.log('Container:', container);
+        console.log('Card prepended successfully. Container children:', container.children.length);
+        console.log('Card in DOM:', document.contains(card));
         
-        // Wire audio event listeners (clicks are handled by event delegation)
+        // Attach click listener directly to the card
+        card.addEventListener('click', (e) => {
+            console.log('DIRECT CARD CLICK:', e.target);
+            
+            // Don't expand if clicking on control buttons
+            if (e.target.closest('.playback-controls')) {
+                console.log('Clicked on controls, not expanding');
+                return;
+            }
+            
+            // Close all other expanded cards
+            document.querySelectorAll('.recording-card.expanded').forEach(otherCard => {
+                if (otherCard !== card) {
+                    otherCard.classList.remove('expanded');
+                    const otherControls = otherCard.querySelector('.playback-controls');
+                    if (otherControls) {
+                        otherControls.classList.add('hidden');
+                    }
+                }
+            });
+            
+            // Toggle current card
+            const isExpanded = card.classList.contains('expanded');
+            const controls = card.querySelector('.playback-controls');
+            
+            console.log('Direct click - Is expanded:', isExpanded, 'Controls found:', !!controls);
+            
+            if (controls) {
+                if (isExpanded) {
+                    console.log('Collapsing card');
+                    card.classList.remove('expanded');
+                    controls.classList.add('hidden');
+                } else {
+                    console.log('Expanding card');
+                    card.classList.add('expanded');
+                    controls.classList.remove('hidden');
+                }
+            }
+        });
+        
+        // Wire audio event listeners
         wireCardInteractions(card);
+        
+        // Also attach play button listener directly
+        const playBtn = card.querySelector('.play-pause-btn');
+        if (playBtn) {
+            playBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('DIRECT PLAY BUTTON CLICK');
+                
+                const playIcon = playBtn.querySelector('.play-icon');
+                const pauseIcon = playBtn.querySelector('.pause-icon');
+                const audio = card.querySelector('audio.generated-audio');
+                
+                console.log('Play button clicked, audio found:', !!audio);
+                
+                if (audio) {
+                    if (audio.paused) {
+                        audio.play().catch(e => console.warn('Audio play failed:', e));
+                        if (playIcon && pauseIcon) {
+                            playIcon.classList.add('hidden');
+                            pauseIcon.classList.remove('hidden');
+                        }
+                    } else {
+                        audio.pause();
+                        if (playIcon && pauseIcon) {
+                            playIcon.classList.remove('hidden');
+                            pauseIcon.classList.add('hidden');
+                        }
+                    }
+                }
+            });
+        }
         // Llamar perform y actualizar solo duración cuando llegue
         try {
             const { performRoutine } = await import('../api.ts');
@@ -699,13 +778,34 @@ export function setupVoiceRecordingEventListeners() {
 
   // Setup event delegation for dynamically added cards
   const recordingsContainer = document.querySelector('.recordings-container');
+  console.log('Setting up event delegation on container:', recordingsContainer);
+  
   if (recordingsContainer) {
+    console.log('Recordings container found, setting up event listeners');
+    
+    // Add a test event listener to verify the container is working
     recordingsContainer.addEventListener('click', (e) => {
+      console.log('RAW CONTAINER CLICK:', e.target, e.target.className);
+    });
+    
+    recordingsContainer.addEventListener('click', (e) => {
+      console.log('Container click detected:', e.target);
+      
       const card = e.target.closest('.recording-card');
-      if (!card) return;
+      console.log('Closest card found:', card);
+      if (card) {
+        console.log('Card classes:', card.className);
+        console.log('Card has recording-card class:', card.classList.contains('recording-card'));
+      }
+      
+      if (!card) {
+        console.log('No card found, returning');
+        return;
+      }
       
       // Don't expand if clicking on control buttons
       if (e.target.closest('.playback-controls')) {
+        console.log('Clicked on controls, not expanding');
         return;
       }
       
