@@ -1,0 +1,18 @@
+[phases.setup]
+nixPkgs = ["python311", "gcc", "ffmpeg"]
+
+[phases.install]
+cmds = [
+  "python -m venv --copies /opt/venv",
+  ". /opt/venv/bin/activate",
+  "pip install -r requirements.txt"
+]
+
+[start]
+cmd = "PYTHONPATH=/app python -m uvicorn backend.main:get_app --factory --host 0.0.0.0 --port $PORT"
+
+[variables]
+PORT = "5002"
+APP_NAME = "newvisions-backend"
+ENV = "production"
+PYTHONPATH = "/app"
