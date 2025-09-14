@@ -11,8 +11,7 @@ import { renderTextInputRoutineScreen } from './screens/text-input-routine.js';
 import { renderCardsRoutineScreen } from './screens/cards-routine.js';
 import { renderNumbersRoutineScreen } from './screens/numbers-routine.js';
 import { renderStarSignsRoutineScreen } from './screens/star-signs-routine.js';
-import { renderVoiceRecordingScreen } from './screens/voice-recording.js';
-import { setupEventListeners } from './events.js';
+import { renderPWAInstallScreen } from './screens/pwa-install.js';
 
 export function renderScreen() {
   const app = document.querySelector('#app');
@@ -52,6 +51,9 @@ export function renderScreen() {
       break;
     case 'star-signs-routine':
       app.innerHTML = renderStarSignsRoutineScreen();
+      break;
+    case 'pwa-install':
+      app.innerHTML = renderPWAInstallScreen();
       break;
     case 'voice-recording':
       app.innerHTML = renderVoiceRecordingScreen(getRoutineType(), getRoutineValue());
