@@ -451,12 +451,40 @@ export function setupVoiceRecordingEventListeners() {
                     <div class="recording-duration">--:--</div>
                 </div>
                 <div class="playback-controls hidden">
-                    <button class="control-button play-pause-btn">
-                        <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"></polygon></svg>
-                        <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                    <button class="control-button skip-backward">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="19,20 9,12 19,4"></polygon>
+                            <line x1="5" y1="19" x2="5" y2="5"></line>
+                        </svg>
                     </button>
-                    <div class="progress-container"><div class="progress-bar"><div class="progress-fill"></div></div></div>
-                    <div class="playback-time"><span class="current-time">0:00</span><span class="total-time">--:--</span></div>
+                    
+                    <button class="control-button play-pause-btn">
+                        <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5,3 19,12 5,21"></polygon>
+                        </svg>
+                        <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                    </button>
+                    
+                    <button class="control-button skip-forward">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5,4 15,12 5,20"></polygon>
+                            <line x1="19" y1="5" x2="19" y2="19"></line>
+                        </svg>
+                    </button>
+                    
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="playback-time">
+                        <span class="current-time">0:00</span>
+                        <span class="total-time">--:--</span>
+                    </div>
                 </div>
                 <audio class="generated-audio" preload="auto" style="display:none"></audio>
             </div>`;
@@ -530,33 +558,6 @@ export function setupVoiceRecordingEventListeners() {
         const totalTimeEl = card.querySelector('.total-time');
         
         // Add click event listener for card expansion
-        card.addEventListener('click', (e) => {
-            // Don't expand if clicking on control buttons
-            if (e.target.closest('.playback-controls')) {
-                return;
-            }
-            
-            // Close all other expanded cards
-            document.querySelectorAll('.recording-card.expanded').forEach(otherCard => {
-                if (otherCard !== card) {
-                    otherCard.classList.remove('expanded');
-                    const otherControls = otherCard.querySelector('.playback-controls');
-                    otherControls.classList.add('hidden');
-                }
-            });
-            
-            // Toggle current card
-            const isExpanded = card.classList.contains('expanded');
-            const controls = card.querySelector('.playback-controls');
-            
-            if (isExpanded) {
-                card.classList.remove('expanded');
-                controls.classList.add('hidden');
-            } else {
-                card.classList.add('expanded');
-                controls.classList.remove('hidden');
-            }
-        });
         card.addEventListener('click', (e) => {
             // Don't expand if clicking on control buttons
             if (e.target.closest('.playback-controls')) {
