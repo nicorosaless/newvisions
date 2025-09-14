@@ -51,12 +51,18 @@ def get_db():
             detail="Database not configured. Please set MONGO_URI environment variable."
         )
     try:
+        # Log the URI for debugging (mask password)
+        import re
+        masked_uri = re.sub(r'://([^:]+):([^@]+)@', r'://\1:***@\2', settings.mongo_uri)
+        print(f"Connecting to MongoDB: {masked_uri}")
         client = MongoClient(settings.mongo_uri, serverSelectionTimeoutMS=5000, tlsAllowInvalidCertificates=True)
         # Test the connection
         client.admin.command('ping')
+        print("Successfully connected to MongoDB")
         # Use documented db name
         return client["voicememos_db"], client
     except Exception as e:
+        print(f"Database connection failed: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Database connection failed: {str(e)}"
