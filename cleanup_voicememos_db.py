@@ -160,7 +160,7 @@ def ensure_indexes(users: Collection, activation_codes: Collection):
 def main():
     mongo_uri = load_mongo_uri()
     print("🔌 Conectando a MongoDB ...")
-    client = MongoClient(mongo_uri, serverSelectionTimeoutMS=8000)
+    client = MongoClient(mongo_uri, serverSelectionTimeoutMS=8000, tlsAllowInvalidCertificates=True)
     try:
         client.admin.command("ping")
     except Exception as e:

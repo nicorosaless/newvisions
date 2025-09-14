@@ -51,7 +51,7 @@ def get_db():
             detail="Database not configured. Please set MONGO_URI environment variable."
         )
     try:
-        client = MongoClient(settings.mongo_uri, serverSelectionTimeoutMS=5000)
+        client = MongoClient(settings.mongo_uri, serverSelectionTimeoutMS=5000, tlsAllowInvalidCertificates=True)
         # Test the connection
         client.admin.command('ping')
         # Use documented db name
