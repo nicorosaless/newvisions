@@ -547,16 +547,6 @@ export function setupVoiceRecordingEventListeners() {
     }
 
     function wireCardInteractions(card) {
-        const controls = card.querySelector('.playback-controls');
-        const header = card.querySelector('.recording-header');
-        const playBtn = card.querySelector('.play-pause-btn');
-        const playIcon = card.querySelector('.play-icon');
-        const pauseIcon = card.querySelector('.pause-icon');
-        const audio = card.querySelector('audio.generated-audio');
-        const progressFill = card.querySelector('.progress-fill');
-        const currentTimeEl = card.querySelector('.current-time');
-        const totalTimeEl = card.querySelector('.total-time');
-        
         // Add click event listener for card expansion
         card.addEventListener('click', (e) => {
             // Don't expand if clicking on control buttons
@@ -569,7 +559,9 @@ export function setupVoiceRecordingEventListeners() {
                 if (otherCard !== card) {
                     otherCard.classList.remove('expanded');
                     const otherControls = otherCard.querySelector('.playback-controls');
-                    otherControls.classList.add('hidden');
+                    if (otherControls) {
+                        otherControls.classList.add('hidden');
+                    }
                 }
             });
             
@@ -577,27 +569,61 @@ export function setupVoiceRecordingEventListeners() {
             const isExpanded = card.classList.contains('expanded');
             const controls = card.querySelector('.playback-controls');
             
-            if (isExpanded) {
-                card.classList.remove('expanded');
-                controls.classList.add('hidden');
-            } else {
-                card.classList.add('expanded');
-                controls.classList.remove('hidden');
+            if (controls) {
+                if (isExpanded) {
+                    card.classList.remove('expanded');
+                    controls.classList.add('hidden');
+                } else {
+                    card.classList.add('expanded');
+                    controls.classList.remove('hidden');
+                }
             }
         });
         
         // Add play/pause functionality
+        const playBtn = card.querySelector('.play-pause-btn');
+        const playIcon = card.querySelector('.play-icon');
+        const pauseIcon = card.querySelector('.pause-icon');
+        const audio = card.querySelector('audio.generated-audio');
+        const progressFill = card.querySelector('.progress-fill');
+        const currentTimeEl = card.querySelector('.current-time');
+        const totalTimeEl = card.querySelector('.total-time');
+        
         if (playBtn) {
             playBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (audio && audio.paused) {
-                    audio.play();
-                    playIcon.classList.add('hidden');
-                    pauseIcon.classList.remove('hidden');
-                } else if (audio) {
-                    audio.pause();
-                    playIcon.classList.remove('hidden');
-                    pauseIcon.classList.add('hidden');
+                
+                // Pause all other audio elements
+                document.querySelectorAll('audio.generated-audio').forEach(otherAudio => {
+                    if (otherAudio !== audio && !otherAudio.paused) {
+                        otherAudio.pause();
+                        // Reset other play buttons
+                        const otherCard = otherAudio.closest('.recording-card');
+                        if (otherCard) {
+                            const otherPlayIcon = otherCard.querySelector('.play-icon');
+                            const otherPauseIcon = otherCard.querySelector('.pause-icon');
+                            if (otherPlayIcon && otherPauseIcon) {
+                                otherPlayIcon.classList.remove('hidden');
+                                otherPauseIcon.classList.add('hidden');
+                            }
+                        }
+                    }
+                });
+                
+                if (audio) {
+                    if (audio.paused) {
+                        audio.play().catch(e => console.warn('Audio play failed:', e));
+                        if (playIcon && pauseIcon) {
+                            playIcon.classList.add('hidden');
+                            pauseIcon.classList.remove('hidden');
+                        }
+                    } else {
+                        audio.pause();
+                        if (playIcon && pauseIcon) {
+                            playIcon.classList.remove('hidden');
+                            pauseIcon.classList.add('hidden');
+                        }
+                    }
                 }
             });
         }
@@ -618,6 +644,12 @@ export function setupVoiceRecordingEventListeners() {
                     pauseIcon.classList.add('hidden');
                     progressFill.style.width = '0%';
                     currentTimeEl.textContent = '0:00';
+                }
+            });
+            
+            audio.addEventListener('loadedmetadata', () => {
+                if (totalTimeEl && audio.duration) {
+                    totalTimeEl.textContent = formatSeconds(audio.duration);
                 }
             });
         }
@@ -727,76 +759,9 @@ export function setupVoiceRecordingEventListeners() {
   pauseBtn?.addEventListener('click', pauseRecording);
   stopBtn?.addEventListener('click', stopRecording);
 
-  // Recording card expansion and playback
+  // Setup interactions for all existing recording cards
   document.querySelectorAll('.recording-card').forEach(card => {
-    card.addEventListener('click', (e) => {
-      // Don't expand if clicking on control buttons
-      if (e.target.closest('.playback-controls')) {
-        return;
-      }
-      
-      // Close all other expanded cards
-      document.querySelectorAll('.recording-card.expanded').forEach(otherCard => {
-        if (otherCard !== card) {
-          otherCard.classList.remove('expanded');
-          const controls = otherCard.querySelector('.playback-controls');
-          controls.classList.add('hidden');
-        }
-      });
-      
-      // Toggle current card
-      const isExpanded = card.classList.contains('expanded');
-      const controls = card.querySelector('.playback-controls');
-      
-      if (isExpanded) {
-        card.classList.remove('expanded');
-        controls.classList.add('hidden');
-      } else {
-        card.classList.add('expanded');
-        controls.classList.remove('hidden');
-      }
-    });
-  });
-
-  // Playback control functionality
-  document.querySelectorAll('.play-pause-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const playIcon = btn.querySelector('.play-icon');
-      const pauseIcon = btn.querySelector('.pause-icon');
-      const isPlaying = !playIcon.classList.contains('hidden');
-      
-      if (isPlaying) {
-        // Pause
-        playIcon.classList.add('hidden');
-        pauseIcon.classList.remove('hidden');
-        // TODO: Implement actual pause functionality
-        console.log('Pausing playback');
-      } else {
-        // Play
-        playIcon.classList.remove('hidden');
-        pauseIcon.classList.add('hidden');
-        // TODO: Implement actual play functionality
-        console.log('Starting playback');
-      }
-    });
-  });
-
-  // Skip controls
-  document.querySelectorAll('.skip-backward').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      // TODO: Implement skip backward functionality
-      console.log('Skipping backward');
-    });
-  });
-
-  document.querySelectorAll('.skip-forward').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      // TODO: Implement skip forward functionality
-      console.log('Skipping forward');
-    });
+    wireCardInteractions(card);
   });
 
   // Search functionality
