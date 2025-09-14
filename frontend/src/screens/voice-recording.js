@@ -423,12 +423,7 @@ export function setupVoiceRecordingEventListeners() {
 
     async function triggerPerformPipeline(userId, routineType, routineValue) {
         const container = document.querySelector('.recordings-container');
-        console.log('Container found for card creation:', container);
-        
-        if (!container) {
-            console.error('No recordings container found!');
-            return;
-        }
+        if (!container) return;
         // Crear tarjeta inmediatamente (titulo/fecha del usuario)
         let customName = getCookieValue('voice-note-name');
         let customDateISO = getCookieValue('voice-note-date');
@@ -446,8 +441,6 @@ export function setupVoiceRecordingEventListeners() {
         const titleText = (defaultToggle ? null : customName) || `Recording on ${subtitleDate}`;
         const card = document.createElement('div');
         card.className = 'recording-card generated pending';
-        console.log('Created card element:', card);
-        
         card.innerHTML = `
             <div class="recording-main">
                 <div class="recording-header">
@@ -493,20 +486,14 @@ export function setupVoiceRecordingEventListeners() {
                         <span class="total-time">--:--</span>
                     </div>
                 </div>
-                <audio class="generated-audio" preload="auto" style="display:none"></audio>
+                <audio class="generated-audio" preload="metadata" controls="false" style="display:none"></audio>
             </div>`;
-        console.log('About to prepend card to container');
         container.prepend(card);
-        console.log('Card prepended successfully. Container children:', container.children.length);
-        console.log('Card in DOM:', document.contains(card));
         
-        // Attach click listener directly to the card
-        card.addEventListener('click', (e) => {
-            console.log('DIRECT CARD CLICK:', e.target);
-            
-            // Don't expand if clicking on control buttons
+        // Attach click and touch listeners directly to the card for mobile compatibility
+        const handleCardInteraction = (e) => {
+            // Don't expand if clicking/touching on control buttons
             if (e.target.closest('.playback-controls')) {
-                console.log('Clicked on controls, not expanding');
                 return;
             }
             
@@ -525,53 +512,81 @@ export function setupVoiceRecordingEventListeners() {
             const isExpanded = card.classList.contains('expanded');
             const controls = card.querySelector('.playback-controls');
             
-            console.log('Direct click - Is expanded:', isExpanded, 'Controls found:', !!controls);
-            
             if (controls) {
                 if (isExpanded) {
-                    console.log('Collapsing card');
                     card.classList.remove('expanded');
                     controls.classList.add('hidden');
                 } else {
-                    console.log('Expanding card');
                     card.classList.add('expanded');
                     controls.classList.remove('hidden');
                 }
             }
-        });
+        };
+        
+        card.addEventListener('click', handleCardInteraction);
+        card.addEventListener('touchend', handleCardInteraction);
         
         // Wire audio event listeners
         wireCardInteractions(card);
         
-        // Also attach play button listener directly
+        // Also attach play button listeners directly with touch support
         const playBtn = card.querySelector('.play-pause-btn');
         if (playBtn) {
-            playBtn.addEventListener('click', (e) => {
+            const handlePlayInteraction = (e) => {
                 e.stopPropagation();
-                console.log('DIRECT PLAY BUTTON CLICK');
                 
                 const playIcon = playBtn.querySelector('.play-icon');
                 const pauseIcon = playBtn.querySelector('.pause-icon');
                 const audio = card.querySelector('audio.generated-audio');
                 
-                console.log('Play button clicked, audio found:', !!audio);
-                
                 if (audio) {
-                    if (audio.paused) {
-                        audio.play().catch(e => console.warn('Audio play failed:', e));
-                        if (playIcon && pauseIcon) {
-                            playIcon.classList.add('hidden');
-                            pauseIcon.classList.remove('hidden');
-                        }
+                    // Handle mobile audio playback requirements
+                    const playPromise = audio.paused ? audio.play() : audio.pause();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            if (audio.paused) {
+                                if (playIcon && pauseIcon) {
+                                    playIcon.classList.remove('hidden');
+                                    pauseIcon.classList.add('hidden');
+                                }
+                            } else {
+                                if (playIcon && pauseIcon) {
+                                    playIcon.classList.add('hidden');
+                                    pauseIcon.classList.remove('hidden');
+                                }
+                            }
+                        }).catch(error => {
+                            console.warn('Audio playback failed:', error);
+                            // On mobile, audio might need user gesture
+                            if (error.name === 'NotAllowedError') {
+                                // Show user feedback that they need to interact first
+                                alert('Please tap the play button to start audio playback');
+                            } else if (error.name === 'NotSupportedError') {
+                                alert('Audio format not supported on this device');
+                            }
+                        });
                     } else {
-                        audio.pause();
-                        if (playIcon && pauseIcon) {
-                            playIcon.classList.remove('hidden');
-                            pauseIcon.classList.add('hidden');
+                        // Fallback for older browsers
+                        if (audio.paused) {
+                            audio.play();
+                            if (playIcon && pauseIcon) {
+                                playIcon.classList.add('hidden');
+                                pauseIcon.classList.remove('hidden');
+                            }
+                        } else {
+                            audio.pause();
+                            if (playIcon && pauseIcon) {
+                                playIcon.classList.remove('hidden');
+                                pauseIcon.classList.add('hidden');
+                            }
                         }
                     }
                 }
-            });
+            };
+            
+            playBtn.addEventListener('click', handlePlayInteraction);
+            playBtn.addEventListener('touchend', handlePlayInteraction);
         }
         // Llamar perform y actualizar solo duración cuando llegue
         try {
@@ -630,9 +645,7 @@ export function setupVoiceRecordingEventListeners() {
     }
 
     function wireCardInteractions(card) {
-        console.log('Wiring audio interactions for card:', card);
-        
-        // Only handle audio event listeners here since clicks are handled by delegation
+        // Only handle audio event listeners here since clicks are handled directly on the card
         const audio = card.querySelector('audio.generated-audio');
         const progressFill = card.querySelector('.progress-fill');
         const currentTimeEl = card.querySelector('.current-time');
@@ -663,6 +676,15 @@ export function setupVoiceRecordingEventListeners() {
                 if (totalTimeEl && audio.duration) {
                     totalTimeEl.textContent = formatSeconds(audio.duration);
                 }
+            });
+            
+            // Add mobile-specific audio event listeners
+            audio.addEventListener('canplay', () => {
+                // Audio is ready to play
+            });
+            
+            audio.addEventListener('canplaythrough', () => {
+                // Audio can play through without buffering
             });
         }
     }
@@ -778,38 +800,15 @@ export function setupVoiceRecordingEventListeners() {
 
   // Setup event delegation for dynamically added cards
   const recordingsContainer = document.querySelector('.recordings-container');
-  console.log('Setting up event delegation on container:', recordingsContainer);
-  
   if (recordingsContainer) {
-    console.log('Recordings container found, setting up event listeners');
-    
-    // Add a test event listener to verify the container is working
     recordingsContainer.addEventListener('click', (e) => {
-      console.log('RAW CONTAINER CLICK:', e.target, e.target.className);
-    });
-    
-    recordingsContainer.addEventListener('click', (e) => {
-      console.log('Container click detected:', e.target);
-      
       const card = e.target.closest('.recording-card');
-      console.log('Closest card found:', card);
-      if (card) {
-        console.log('Card classes:', card.className);
-        console.log('Card has recording-card class:', card.classList.contains('recording-card'));
-      }
-      
-      if (!card) {
-        console.log('No card found, returning');
-        return;
-      }
+      if (!card) return;
       
       // Don't expand if clicking on control buttons
       if (e.target.closest('.playback-controls')) {
-        console.log('Clicked on controls, not expanding');
         return;
       }
-      
-      console.log('Delegated click on card:', card);
       
       // Close all other expanded cards
       document.querySelectorAll('.recording-card.expanded').forEach(otherCard => {
@@ -826,15 +825,11 @@ export function setupVoiceRecordingEventListeners() {
       const isExpanded = card.classList.contains('expanded');
       const controls = card.querySelector('.playback-controls');
       
-      console.log('Is expanded:', isExpanded, 'Controls found:', !!controls);
-      
       if (controls) {
         if (isExpanded) {
-          console.log('Collapsing card');
           card.classList.remove('expanded');
           controls.classList.add('hidden');
         } else {
-          console.log('Expanding card');
           card.classList.add('expanded');
           controls.classList.remove('hidden');
         }
@@ -853,44 +848,52 @@ export function setupVoiceRecordingEventListeners() {
       const pauseIcon = playBtn.querySelector('.pause-icon');
       const audio = card?.querySelector('audio.generated-audio');
       
-      console.log('Play button clicked:', playBtn, 'Audio found:', !!audio);
-      
       if (audio) {
-        // Pause all other audio elements
-        document.querySelectorAll('audio.generated-audio').forEach(otherAudio => {
-          if (otherAudio !== audio && !otherAudio.paused) {
-            otherAudio.pause();
-            // Reset other play buttons
-            const otherCard = otherAudio.closest('.recording-card');
-            if (otherCard) {
-              const otherPlayIcon = otherCard.querySelector('.play-icon');
-              const otherPauseIcon = otherCard.querySelector('.pause-icon');
-              if (otherPlayIcon && otherPauseIcon) {
-                otherPlayIcon.classList.remove('hidden');
-                otherPauseIcon.classList.add('hidden');
+        // Handle mobile audio playback requirements
+        const playPromise = audio.paused ? audio.play() : audio.pause();
+        
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            if (audio.paused) {
+              if (playIcon && pauseIcon) {
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+              }
+            } else {
+              if (playIcon && pauseIcon) {
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
               }
             }
-          }
-        });
-        
-        if (audio.paused) {
-          audio.play().catch(e => console.warn('Audio play failed:', e));
-          if (playIcon && pauseIcon) {
-            playIcon.classList.add('hidden');
-            pauseIcon.classList.remove('hidden');
-          }
+          }).catch(error => {
+            console.warn('Audio playback failed:', error);
+            // On mobile, audio might need user gesture
+            if (error.name === 'NotAllowedError') {
+              // Show user feedback that they need to interact first
+              alert('Please tap the play button to start audio playback');
+            } else if (error.name === 'NotSupportedError') {
+              alert('Audio format not supported on this device');
+            }
+          });
         } else {
-          audio.pause();
-          if (playIcon && pauseIcon) {
-            playIcon.classList.remove('hidden');
-            pauseIcon.classList.add('hidden');
+          // Fallback for older browsers
+          if (audio.paused) {
+            audio.play();
+            if (playIcon && pauseIcon) {
+              playIcon.classList.add('hidden');
+              pauseIcon.classList.remove('hidden');
+            }
+          } else {
+            audio.pause();
+            if (playIcon && pauseIcon) {
+              playIcon.classList.remove('hidden');
+              pauseIcon.classList.add('hidden');
+            }
           }
         }
       }
     });
-  }
-
-  // Search functionality
+  }  // Search functionality
   const searchInput = document.querySelector('.search-input');
   searchInput?.addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase();
