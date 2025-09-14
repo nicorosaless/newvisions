@@ -46,10 +46,21 @@ AMBIENT_DIR.mkdir(exist_ok=True)
 # --- Mongo helper (quick inline for now; later move to services/config) ---
 def get_db():
     if not settings.mongo_uri:
-        raise RuntimeError("MONGO_URI not configured")
-    client = MongoClient(settings.mongo_uri)
-    # Use documented db name
-    return client["voicememos_db"], client
+        raise HTTPException(
+            status_code=500,
+            detail="Database not configured. Please set MONGO_URI environment variable."
+        )
+    try:
+        client = MongoClient(settings.mongo_uri, serverSelectionTimeoutMS=5000)
+        # Test the connection
+        client.admin.command('ping')
+        # Use documented db name
+        return client["voicememos_db"], client
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database connection failed: {str(e)}"
+        )
 
 
 class RegisterRequest(BaseModel):
