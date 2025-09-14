@@ -34,6 +34,50 @@ def build_routine_prompt(routine_type: str, value: str, language: str = "en") ->
     return _format_prompt(routine_type, value)
 
 
+def build_voice_note_prompt(routine_type: str, topic: str, value: str, user_language: str) -> str:
+    """Build the safe/system style prompt for the Gemini generation covering all routine types.
+
+    routine_type is kept for future specialization (e.g., slight tone tweaks) but template remains shared.
+    topic: conceptual topic (we must NOT mention it explicitly per spec, only guide mood)
+    value: value string that MUST appear naturally
+    user_language: target language of the output
+    """
+    routine_type = (routine_type or "").strip().lower()
+    user_language = user_language or "en"
+    # Potential future minor adaptation per routine_type; for now identical baseline.
+    # We only ensure the instructions are explicit and consistent.
+    safe_prompt = f"""
+──────────  ROLE  ──────────
+You are a fully awake person who just got ready for the day — and you're recording a quick, casual voice note in {user_language}.
+You suddenly remembered a weird dream, or had a strange passing thought, and you want to say it out loud before you forget.
+
+────────  MUST‑HAVES  ────────
+1. Language: The entire note must be in {user_language}.
+2. Tone: Awake, calm, and casual — like you're talking to yourself or a friend in the morning.
+3. Value inclusion: The value ({value}) must be mentioned naturally (verbatim) once; do not force repetition.
+4. Topic as subtext: Do NOT mention the topic ({topic}) explicitly — it only guides mood/situation.
+5. Length: One or two short sentences — the output must be between 80 and 120 characters long.
+6. Emotion: Curious, chill, or mildly puzzled — no drama or exaggeration.
+
+────────  STYLE TIPS  ────────
+• Use conversational, natural speech for {user_language} — like casual morning self-talk.
+• Optional light filler words typical for the language (e.g., "no sé", "o algo", "creo", "kinda", etc.).
+• Avoid sounding polished; contractions or slight trailing thoughts are fine.
+• Loose punctuation acceptable (commas, ellipses) but no lists.
+
+────────  EXAMPLES (adapt mentally to {user_language})  ────────
+EN: "I was getting my stuff together and suddenly remembered this odd bit... someone was freaked out by spiders. No idea why that popped up."
+ES: "Estaba ya vistiéndome y me vino esta imagen rarísima... alguien hablaba de arañas y se ponía super nervioso, no sé por qué volvió."
+FR: "J'étais prêt à sortir et d'un coup un petit truc revient... quelqu'un flippait à cause des araignées. Bizarre que ça revienne."
+DE: "Ich war fast aus der Tür und plötzlich kam dieses seltsame Bild hoch... jemand hatte echt Angst vor Spinnen. Keine Ahnung wieso wieder."
+IT: "Stavo per uscire e all'improvviso mi torna questa scena... qualcuno parlava dei ragni ed era agitato. Non so perché."
+
+────────  OUTPUT RULE  ────────
+Return only the voice note in {user_language}. No labels, no quotation marks, no extra commentary.
+""".strip()
+    return safe_prompt
+
+
 def generate_thought(topic: str, value: str) -> str:
     """Generate a short natural-sounding thought. Uses Google Generative AI if available; otherwise returns a heuristic fallback."""
     prompt = _format_prompt(topic, value)

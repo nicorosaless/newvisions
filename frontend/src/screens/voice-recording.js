@@ -37,54 +37,7 @@ export function renderVoiceRecordingScreen(routineType, routineValue) {
                         <!-- Recent Section -->
                         <div class="recordings-section">
                             
-                            <div class="recording-card" data-recording-id="1">
-                                <div class="recording-main">
-                                    <div class="recording-header">
-                                        <div class="recording-info">
-                                                <h4 class="recording-title" id="first-recording-title">Recording on 14 May 2025</h4>
-                                                <div class="recording-subtitle" id="first-recording-subtitle">14 May 2025</div>
-                                        </div>
-                                        <div class="recording-duration">2:34</div>
-                                    </div>
-                                    
-                                    <div class="playback-controls hidden">
-                                        <button class="control-button skip-backward">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                                <polygon points="19,20 9,12 19,4"></polygon>
-                                                <line x1="5" y1="19" x2="5" y2="5"></line>
-                                            </svg>
-                                        </button>
-                                        
-                                        <button class="control-button play-pause-btn">
-                                            <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                                <polygon points="5,3 19,12 5,21"></polygon>
-                                            </svg>
-                                            <svg class="pause-icon hidden" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                                <rect x="6" y="4" width="4" height="16"></rect>
-                                                <rect x="14" y="4" width="4" height="16"></rect>
-                                            </svg>
-                                        </button>
-                                        
-                                        <button class="control-button skip-forward">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                                <polygon points="5,4 15,12 5,20"></polygon>
-                                                <line x1="19" y1="5" x2="19" y2="19"></line>
-                                            </svg>
-                                        </button>
-                                        
-                                        <div class="progress-container">
-                                            <div class="progress-bar">
-                                                <div class="progress-fill"></div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="playback-time">
-                                            <span class="current-time">0:00</span>
-                                            <span class="total-time">2:34</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <!-- Static first recording removed; dynamically injected cards will appear here -->
 
                             <div class="recording-card" data-recording-id="2">
                                 <div class="recording-main">
@@ -471,42 +424,29 @@ export function setupVoiceRecordingEventListeners() {
     async function triggerPerformPipeline(userId, routineType, routineValue) {
         const container = document.querySelector('.recordings-container');
         if (!container) return;
-        // Placeholder loading card
-        const loadingId = 'generated-loading';
-        if (!document.getElementById(loadingId)) {
-            const loading = document.createElement('div');
-            loading.id = loadingId;
-            loading.className = 'recording-card';
-            loading.innerHTML = `<div class="recording-main"><div class="recording-header"><div class="recording-info"><h4 class="recording-title">Generating thought...</h4><div class="recording-subtitle">Please wait</div></div><div class="recording-duration">--</div></div></div>`;
-            container.prepend(loading);
-        }
-        try {
-            const { performRoutine } = await import('../api.ts');
-            const resp = await performRoutine({ user_id: userId, routine_type: routineType, value: routineValue });
-            renderGeneratedRecording(resp, container);
-        } catch (err) {
-            console.error('Perform error', err);
-            const loading = document.getElementById(loadingId);
-            if (loading) {
-                loading.querySelector('.recording-title').textContent = 'Error generating';
-                loading.querySelector('.recording-subtitle').textContent = (err && err.message) || 'Unknown error';
-            }
-        }
-    }
-
-    function renderGeneratedRecording(resp, container) {
-        const loading = document.getElementById('generated-loading');
-        if (loading) loading.remove();
-        const card = document.createElement('div');
+        // Crear tarjeta inmediatamente (titulo/fecha del usuario)
+        let customName = getCookieValue('voice-note-name');
+        let customDateISO = getCookieValue('voice-note-date');
+        let defaultToggle = getCookieValue('voice-note-name-default') === 'true';
         const now = new Date();
-        const dateStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-        card.className = 'recording-card generated';
+        let subtitleDate = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+        if (customDateISO) {
+            try { const d = new Date(customDateISO); if (!isNaN(d.getTime())) subtitleDate = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }); } catch(_){ }
+        }
+        // Fallbacks cuando no hay cookies aún (por primer login sin settings guardados)
+        if (!customDateISO) {
+            // intentar usar fecha actual formateada para consistencia
+            // (subtitleDate ya es fecha actual formateada)
+        }
+        const titleText = (defaultToggle ? null : customName) || `Recording on ${subtitleDate}`;
+        const card = document.createElement('div');
+        card.className = 'recording-card generated pending';
         card.innerHTML = `
             <div class="recording-main">
                 <div class="recording-header">
                     <div class="recording-info">
-                        <h4 class="recording-title">${escapeHtml(resp.text.substring(0, 40))}${resp.text.length > 40 ? '…' : ''}</h4>
-                        <div class="recording-subtitle">${dateStr} · ${resp.routine_type}</div>
+                        <h4 class="recording-title">${escapeHtml(titleText)}</h4>
+                        <div class="recording-subtitle">${subtitleDate}</div>
                     </div>
                     <div class="recording-duration">--:--</div>
                 </div>
@@ -521,23 +461,42 @@ export function setupVoiceRecordingEventListeners() {
                 <audio class="generated-audio" preload="auto" style="display:none"></audio>
             </div>`;
         container.prepend(card);
-        // Decode base64 audio and attach to audio element
-        const audioEl = card.querySelector('audio.generated-audio');
-        try {
-            const blob = base64ToBlob(resp.audio_base64, 'audio/mpeg');
-            const url = URL.createObjectURL(blob);
-            audioEl.src = url;
-            audioEl.addEventListener('loadedmetadata', () => {
-                const dur = formatSeconds(audioEl.duration);
-                const durEl = card.querySelector('.recording-duration');
-                const totalTimeEl = card.querySelector('.total-time');
-                if (durEl) durEl.textContent = dur;
-                if (totalTimeEl) totalTimeEl.textContent = dur;
-            });
-        } catch (e) {
-            console.warn('Failed to attach audio', e);
-        }
         wireCardInteractions(card);
+        // Llamar perform y actualizar solo duración cuando llegue
+        try {
+            const { performRoutine } = await import('../api.ts');
+            const resp = await performRoutine({ user_id: userId, routine_type: routineType, value: routineValue });
+            // Créditos
+            try {
+                const { setUserCredits } = await import('../state.js');
+                if (typeof resp.charCount === 'number' && typeof resp.monthlyLimit === 'number') {
+                    setUserCredits(resp.charCount, resp.monthlyLimit);
+                    const creditEl = document.querySelector('.credits-text');
+                    if (creditEl) creditEl.textContent = `${resp.charCount}/${resp.monthlyLimit}`;
+                }
+            } catch(e){ console.warn('Credit update failed', e); }
+            const audioEl = card.querySelector('audio.generated-audio');
+            if (audioEl) {
+                try {
+                    const blob = base64ToBlob(resp.audio_base64, 'audio/mpeg');
+                    const url = URL.createObjectURL(blob);
+                    audioEl.src = url;
+                    audioEl.addEventListener('loadedmetadata', () => {
+                        const dur = formatSeconds(audioEl.duration);
+                        const durEl = card.querySelector('.recording-duration');
+                        const totalTimeEl = card.querySelector('.total-time');
+                        if (durEl) durEl.textContent = dur;
+                        if (totalTimeEl) totalTimeEl.textContent = dur;
+                        card.classList.remove('pending');
+                    });
+                } catch(e){ console.warn('Attach audio failed', e); }
+            }
+        } catch(err) {
+            console.error('Perform error', err);
+            const durEl = card.querySelector('.recording-duration');
+            if (durEl) durEl.textContent = 'ERR';
+            card.classList.add('error');
+        }
     }
 
     function base64ToBlob(b64, mime) {
@@ -599,8 +558,7 @@ export function setupVoiceRecordingEventListeners() {
             currentTimeEl.textContent = '0:00';
         });
     }
-  // Load custom recording details from cookies
-  loadCustomRecordingDetails();
+    // (Removed call to loadCustomRecordingDetails)
 
   // Recording card expansion and playback  // Recording functionality
   const recordBtn = document.getElementById('record-btn');
@@ -821,28 +779,6 @@ function getCookieValue(key) {
   return null;
 }
 
-function loadCustomRecordingDetails() {
-  const titleElement = document.getElementById('first-recording-title');
-  const subtitleElement = document.getElementById('first-recording-subtitle');
-  
-  // Load custom voice note name
-  const customName = getCookieValue('voice-note-name');
-  if (customName && titleElement) {
-    titleElement.textContent = customName;
-  }
-  
-  // Load custom voice note date
-  const customDate = getCookieValue('voice-note-date');
-  if (customDate && subtitleElement) {
-    // Format the date to be more readable
-    const date = new Date(customDate);
-    const formattedDate = date.toLocaleDateString('en-US', { 
-      day: 'numeric', 
-      month: 'short', 
-      year: 'numeric' 
-    });
-    subtitleElement.textContent = formattedDate;
-  }
-}
+// Removed legacy loadCustomRecordingDetails.
 
 // (Real microphone capture can be wired later using MediaRecorder)

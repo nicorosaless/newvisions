@@ -1,6 +1,6 @@
 # Voice Pool (LRU) - Especificación
 
-Última actualización: 13-09-2025
+Última actualización: 14-09-2025
 
 ## 1. Objetivo
 Optimizar el uso de los (máx) N slots de voces clonadas que permite ElevenLabs (tier actual: 10) evitando:
@@ -221,3 +221,65 @@ Job periódico:
 ---
 
 Fin de especificación.
+
+## 20. Herramientas Operativas Implementadas (Scripts)
+
+Para soportar monitoreo de capacidad de voces y mantenimiento manual del pool / provider se añadieron los siguientes scripts en `backend/scripts/`:
+
+### 20.1 `detect_elevenlabs_capacity.py` (modo simplificado)
+- Ahora siempre imprime únicamente un JSON con:
+  - `cloned_voice_names`: lista de nombres de voces clonadas detectadas vía `GET /v1/voices`.
+  - `over_10_excess_count`: cuántas exceden el umbral (cap actual esperado = 10).
+  - `total_cloned`: total de voces clonadas.
+- Uso:
+```
+python detect_elevenlabs_capacity.py
+```
+- Objetivo: verificar rápidamente si se alcanzó o sobrepasó el límite del plan (heurística) sin ruido adicional.
+
+### 20.2 `delete_voice.py`
+Script de administración para eliminar voces clonadas directamente en el provider (NO sólo del pool). Debe usarse con precaución porque la eliminación es irreversible en ElevenLabs.
+
+Funciones clave:
+- `--list`: lista voces clonadas + exceso sobre 10.
+- `--id VOICE_ID`: elimina voz por ID.
+- `--name "Nombre"`: elimina por nombre (match exacto o heurístico si exacto no existe y hay una única coincidencia de substring).
+- `--delete-last`: elimina la última voz clonada según el orden devuelto por la API (sirve como atajo para liberar un slot rápidamente).
+- `--force`: omite confirmación interactiva.
+
+Ejemplos:
+```
+python backend/scripts/delete_voice.py --list
+python backend/scripts/delete_voice.py --id <VOICE_ID> --force
+python backend/scripts/delete_voice.py --name "usuario_demo" --force
+python backend/scripts/delete_voice.py --delete-last --force
+```
+
+Campos de salida típicos:
+```json
+{
+  "deleted": true,
+  "voice_id": "...",
+  "name": "...",
+  "provider_response": {"status": "ok"}
+}
+```
+
+### 20.3 Relación con el Pool LRU
+Actualmente estos scripts actúan a nivel provider, no manipulan directamente la colección `voice_pool` (que es lógica local). Si se elimina una voz clonada en ElevenLabs y existía aún una entrada en `voice_pool`, el próximo `acquire_voice` fallará la síntesis con ese `voice_id` y deberá:
+1. Detectar error provider (404 / recurso no encontrado).
+2. Remover entrada obsoleta del pool.
+3. (Opcional) Forzar recreación de clon si la política de negocio lo permite.
+
+### 20.4 Consideraciones de Seguridad y Uso Operativo
+- Ejecutar siempre primero `--list` antes de borrar.
+- Evitar scripts de borrado dentro de pipelines automáticos salvo que exista estrategia de recreación automática.
+- Registrar (en futuro) auditoría de borrados para correlacionar con métricas de uso.
+
+### 20.5 Próximos Pasos Sugeridos
+- Endpoint admin `GET /admin/voice-clones` exponiendo mismo JSON de `detect_elevenlabs_capacity.py`.
+- Endpoint admin `DELETE /admin/voice-clones/{voice_id}` que reutilice lógica del script (con role check).
+- Tarea de reconciliación que marque entradas del pool cuyo `voice_id` ya no existe en provider.
+- Métrica `voice_pool_orphan_entries` (cuenta de entradas cuyo provider voice falta).
+
+---

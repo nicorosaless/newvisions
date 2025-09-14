@@ -69,6 +69,21 @@ export interface UserMetaResponse {
   monthlyLimit: number;
 }
 
+export interface UserVoiceMetaResponse {
+	hasSample: boolean;
+	hasClone: boolean;
+	voiceCloneId: string | null;
+	inPool: boolean;
+}
+
+export interface UserVoiceSourceResponse {
+	voiceCloneId: string | null;
+	hash: string | null;
+	duration: number | null;
+	audio_base64: string; // MP3 base64 (no data URI)
+	mime: string;
+}
+
 // Perform models
 export interface PerformRequest {
 	user_id: string; // backend expects field named user_id
@@ -83,6 +98,10 @@ export interface PerformResponse {
 	filename: string;
 	charCount: number;
 	monthlyLimit: number;
+    // Campos adicionales devueltos por backend
+    voiceSource?: string;
+    charsUsedRaw?: number;
+    charsUsedEffective?: number;
 }
 
 export interface VoiceUploadResponse { status: string; bytes: number; hash?: string; duration?: number }
@@ -97,6 +116,7 @@ export interface UserSettings {
 	background_volume: number;
 	voice_note_name?: string | null;
 	voice_note_date?: string | null; // YYYY-MM-DD
+	voice_note_name_default?: boolean; // if true ignore custom name
 }
 
 export type SettingsUpdateRequest = UserSettings; // identical for now
@@ -212,6 +232,18 @@ export class ApiClient {
 
 	getUserMeta(userId: string): Promise<UserMetaResponse> {
 		return this.request<UserMetaResponse>(`/users/${encodeURIComponent(userId)}/meta`, { method: 'GET', skipAuth: true });
+	}
+
+	getUserVoiceMeta(userId: string): Promise<UserVoiceMetaResponse> {
+		return this.request<UserVoiceMetaResponse>(`/users/${encodeURIComponent(userId)}/voice/meta`, { method: 'GET', skipAuth: true });
+	}
+
+	getUserVoiceSource(userId: string): Promise<UserVoiceSourceResponse> {
+		return this.request<UserVoiceSourceResponse>(`/users/${encodeURIComponent(userId)}/voice/source`, { method: 'GET', skipAuth: true });
+	}
+
+	touchVoicePool(userId: string): Promise<{status:string;voice_clone_id:string;position:number;size:number;enabled:boolean}> {
+		return this.request(`/users/${encodeURIComponent(userId)}/voice/pool/touch`, { method: 'POST', skipAuth: true });
 	}
 
 	perform(data: PerformRequest): Promise<PerformResponse> {

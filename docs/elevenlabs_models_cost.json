@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "description": "Factores relativos de coste/crédito por modelo ElevenLabs (snapshot actual). 1.0 = referencia base (Multilingual v2).",
+    "last_update": "2025-09-14",
+    "assumptions": [
+      "Turbo v2.5 y Flash v2.5 anuncian ~50% menor precio por carácter → factor 0.5",
+      "Eleven v3 (Alpha) se asume más costoso por carácter (expresividad) → factor 1.2 (ajustar cuando haya datos oficiales)",
+      "Si ElevenLabs publica tarifas concretas, reemplazar estos factores y/o parametrizar vía .env"
+    ],
+    "override_env": "ELEVEN_LABS_MODEL_COST_FACTOR",
+    "usage": "Si el backend usa un solo modelo activo, aplicar settings.elevenlabs_model_cost_factor; si soporta varios por request, leer este JSON y mapear."
+  },
+  "models": [
+  {"model_id": "eleven_v3", "display_name": "Eleven v3 (Alpha)", "character_limit": 3000, "languages": ">70", "cost_factor": 1.0, "notes": "Expresividad avanzada, multi-speaker dialogue (factor normalizado)"},
+  {"model_id": "eleven_multilingual_v2", "display_name": "Eleven Multilingual v2", "character_limit": 10000, "languages": "29", "cost_factor": 1.0, "notes": "Referencia estabilidad long-form (base)"},
+    {"model_id": "eleven_flash_v2_5", "display_name": "Eleven Flash v2.5", "character_limit": 40000, "languages": "32", "cost_factor": 0.5, "notes": "Ultra baja latencia, 50% menor precio"},
+    {"model_id": "eleven_turbo_v2_5", "display_name": "Eleven Turbo v2.5", "character_limit": 40000, "languages": "32", "cost_factor": 0.5, "notes": "Balanced baja latencia, 50% menor precio"}
+  ]
+}

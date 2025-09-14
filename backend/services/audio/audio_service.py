@@ -92,6 +92,79 @@ def synthesize_audio(text: str) -> str:
     """Backward compatible: return base64 string."""
     return base64.b64encode(synthesize_audio_bytes(text)).decode("utf-8")
 
+
+def mix_with_fan(cloned_mp3: bytes, fan_path: Path, fan_volume_pct: int) -> bytes:
+    """Mix cloned voice mp3 with fan ambiance (or noise fallback) via ffmpeg.
+    - fan_volume_pct: 0-100 scales fan loudness (0 = mute)
+    - If fan file missing, generates soft brown noise using ffmpeg anullsrc + low-pass.
+    Returns original audio if any step fails.
+    """
+    fan_volume_pct = max(0, min(100, fan_volume_pct))
+    if fan_volume_pct == 0:
+        logger.debug("mix_with_fan: volume=0 skip")
+        return cloned_mp3
+    import tempfile, subprocess, shutil
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if not ffmpeg_bin:
+        try:
+            import imageio_ffmpeg
+            ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            logger.debug("mix_with_fan: ffmpeg not available")
+            return cloned_mp3
+    use_noise_fallback = not fan_path.exists()
+    if use_noise_fallback:
+        logger.info("mix_with_fan: fan file missing (%s). Using noise fallback", fan_path)
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            voice_in = td_path / "voice.mp3"
+            ambiance_in = td_path / "fan.mp3"
+            mixed_out = td_path / "mixed.mp3"
+            voice_in.write_bytes(cloned_mp3)
+            if not use_noise_fallback:
+                ambiance_in.write_bytes(fan_path.read_bytes())
+            scale = fan_volume_pct / 100.0
+            if use_noise_fallback:
+                # Generate soft broadband noise shaped & low-passed to ~300Hz for subtle hum
+                # anullsrc creates silent stream; then afftdn for noise? Instead create pink-ish using anoisesrc if available.
+                # Some ffmpeg builds lack anoisesrc; fallback to sine at very low freq + small band noise approach.
+                filter_complex = (
+                    f"[0:a]aresample=async=1:first_pts=0[voice];"
+                    f"anoisesrc=colour=brown:amplitude=0.4:duration=3600,lowpass=f=300,volume={scale:.3f}[fan];"
+                    f"[voice][fan]amix=inputs=2:duration=first:dropout_transition=0[a]"
+                )
+                cmd = [
+                    ffmpeg_bin, "-hide_banner", "-loglevel", "error",
+                    "-i", str(voice_in),
+                    "-filter_complex", filter_complex,
+                    "-map", "[a]",
+                    "-c:a", "mp3", "-q:a", "4",
+                    str(mixed_out)
+                ]
+            else:
+                cmd = [
+                    ffmpeg_bin, "-hide_banner", "-loglevel", "error",
+                    "-i", str(voice_in),
+                    "-i", str(ambiance_in),
+                    "-filter_complex",
+                    f"[1:a]volume={scale:.3f}[fan];[0:a][fan]amix=inputs=2:duration=first:dropout_transition=0[a]",
+                    "-map", "[a]",
+                    "-c:a", "mp3", "-q:a", "4",
+                    str(mixed_out)
+                ]
+            subprocess.run(cmd, check=True, timeout=30)
+            if mixed_out.exists() and mixed_out.stat().st_size > 1000:
+                out_bytes = mixed_out.read_bytes()
+                logger.info("mix_with_fan: mixed success bytes=%d noise_fallback=%s scale=%.2f", len(out_bytes), use_noise_fallback, scale)
+                return out_bytes
+            logger.warning("mix_with_fan: mixed file missing/too small")
+    except subprocess.CalledProcessError as e:
+        logger.warning("mix_with_fan: ffmpeg failed rc=%s", e.returncode)
+    except Exception as e:
+        logger.warning("mix_with_fan outer error: %s", e)
+    return cloned_mp3
+
 def synthesize_and_save(text: str, tmp_dir: Path) -> tuple[str, Path]:
     """Generate audio, save it to tmp_dir, return (base64, path)."""
     tmp_dir.mkdir(parents=True, exist_ok=True)
