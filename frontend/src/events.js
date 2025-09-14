@@ -46,7 +46,7 @@ function setupNavigationListeners() {
     { id: 'show-signup', action: () => navigateToScreen('signup') },
     { id: 'show-login', action: () => navigateToScreen('login') },
     { id: 'forgot-password', action: () => navigateToScreen('reset-password') },
-    { id: 'logout-btn', action: () => navigateToScreen('login') },
+    { id: 'logout-btn', action: () => { import('./main.js').then(m => m.signOut()); } },
     { id: 'back-to-home', action: () => navigateToScreen('home') },
     { id: 'back-to-settings', action: () => navigateToScreen('settings') },
     { id: 'back-to-routine-selection', action: () => navigateToScreen('routine-selection') },
