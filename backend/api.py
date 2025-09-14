@@ -38,6 +38,10 @@ api_router = APIRouter()
 TMP_DIR = Path("backend/tmp")
 AMBIENT_DIR = Path("backend/audio-files")
 
+# Ensure directories exist
+TMP_DIR.mkdir(exist_ok=True)
+AMBIENT_DIR.mkdir(exist_ok=True)
+
 
 # --- Mongo helper (quick inline for now; later move to services/config) ---
 def get_db():
