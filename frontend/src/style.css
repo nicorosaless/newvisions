@@ -4927,3 +4927,206 @@ body:has(.voice-recorder-app) #app {
     justify-content: center;
   }
 }
+
+/* PWA Installation Screen Styles */
+.pwa-install-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  padding: 2rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pwa-install-content {
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.app-logo {
+  margin-bottom: 2rem;
+}
+
+.logo-image {
+  width: 120px;
+  height: 120px;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.logo-image:hover {
+  transform: scale(1.05);
+}
+
+.app-title {
+  font-size: 3rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.app-subtitle {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin: 0 0 3rem 0;
+  line-height: 1.4;
+}
+
+.install-instructions {
+  margin: 3rem 0;
+  display: grid;
+  gap: 2rem;
+}
+
+.instruction-section {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: left;
+  backdrop-filter: blur(10px);
+}
+
+.instruction-section h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.instruction-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  line-height: 1.6;
+}
+
+.instruction-list li {
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.instruction-list li:last-child {
+  margin-bottom: 0;
+}
+
+.instruction-list strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.share-icon,
+.menu-icon,
+.install-icon {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  margin: 0 0.2rem;
+}
+
+.why-install {
+  background: rgba(5, 44, 86, 0.2);
+  border: 1px solid rgba(5, 44, 86, 0.3);
+  border-radius: 16px;
+  padding: 2rem;
+  margin: 2rem 0;
+  text-align: left;
+}
+
+.why-install h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+}
+
+.benefits-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  line-height: 1.6;
+}
+
+.benefits-list li {
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.benefits-list li:last-child {
+  margin-bottom: 0;
+}
+
+.browser-warning {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.browser-warning p {
+  margin: 0;
+  color: #ffc107;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.help-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.help-section p {
+  color: var(--text-secondary);
+  margin: 0;
+  font-style: italic;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments for PWA install screen */
+@media (max-width: 768px) {
+  .pwa-install-container {
+    padding: 1rem;
+  }
+  
+  .app-title {
+    font-size: 2.5rem;
+  }
+  
+  .logo-image {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .instruction-section {
+    padding: 1.5rem;
+  }
+  
+  .why-install {
+    padding: 1.5rem;
+  }
+  
+  .install-instructions {
+    gap: 1.5rem;
+  }
+}
