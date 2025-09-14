@@ -528,9 +528,32 @@ export function setupVoiceRecordingEventListeners() {
         const progressFill = card.querySelector('.progress-fill');
         const currentTimeEl = card.querySelector('.current-time');
         const totalTimeEl = card.querySelector('.total-time');
-        header.addEventListener('click', () => {
-            const expanded = card.classList.toggle('expanded');
-            controls.classList.toggle('hidden', !expanded);
+        card.addEventListener('click', (e) => {
+            // Don't expand if clicking on control buttons
+            if (e.target.closest('.playback-controls')) {
+                return;
+            }
+            
+            // Close all other expanded cards
+            document.querySelectorAll('.recording-card.expanded').forEach(otherCard => {
+                if (otherCard !== card) {
+                    otherCard.classList.remove('expanded');
+                    const otherControls = otherCard.querySelector('.playback-controls');
+                    otherControls.classList.add('hidden');
+                }
+            });
+            
+            // Toggle current card
+            const isExpanded = card.classList.contains('expanded');
+            const controls = card.querySelector('.playback-controls');
+            
+            if (isExpanded) {
+                card.classList.remove('expanded');
+                controls.classList.add('hidden');
+            } else {
+                card.classList.add('expanded');
+                controls.classList.remove('hidden');
+            }
         });
         playBtn.addEventListener('click', (e) => {
             e.stopPropagation();
