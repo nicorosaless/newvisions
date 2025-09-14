@@ -29,26 +29,6 @@ export function renderPWAInstallScreen() {
               <li>Find the Visions app on your home screen and tap to open</li>
             </ol>
           </div>
-          
-          <div class="instruction-section">
-            <h2>💻 On Desktop (Chrome/Edge)</h2>
-            <ol class="instruction-list">
-              <li>Look for the <strong>Install</strong> icon <span class="install-icon">⬇️</span> in the address bar</li>
-              <li>Click <strong>"Install"</strong></li>
-              <li>Or go to Menu → <strong>"Install Visions..."</strong></li>
-            </ol>
-          </div>
-        </div>
-        
-        <div class="why-install">
-          <h3>✨ Why install?</h3>
-          <ul class="benefits-list">
-            <li>🚀 Faster loading and better performance</li>
-            <li>📱 Native app-like experience</li>
-            <li>🔔 Push notifications (coming soon)</li>
-            <li>⚡ Works offline for some features</li>
-            <li>🎯 Easy access from your home screen</li>
-          </ul>
         </div>
         
         <div class="browser-warning">
