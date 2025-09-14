@@ -489,6 +489,10 @@ export function setupVoiceRecordingEventListeners() {
                 <audio class="generated-audio" preload="auto" style="display:none"></audio>
             </div>`;
         container.prepend(card);
+        console.log('Card created and added to container:', card);
+        console.log('Container:', container);
+        
+        // Wire audio event listeners (clicks are handled by event delegation)
         wireCardInteractions(card);
         // Llamar perform y actualizar solo duración cuando llegue
         try {
@@ -547,86 +551,13 @@ export function setupVoiceRecordingEventListeners() {
     }
 
     function wireCardInteractions(card) {
-        // Add click event listener for card expansion
-        card.addEventListener('click', (e) => {
-            // Don't expand if clicking on control buttons
-            if (e.target.closest('.playback-controls')) {
-                return;
-            }
-            
-            // Close all other expanded cards
-            document.querySelectorAll('.recording-card.expanded').forEach(otherCard => {
-                if (otherCard !== card) {
-                    otherCard.classList.remove('expanded');
-                    const otherControls = otherCard.querySelector('.playback-controls');
-                    if (otherControls) {
-                        otherControls.classList.add('hidden');
-                    }
-                }
-            });
-            
-            // Toggle current card
-            const isExpanded = card.classList.contains('expanded');
-            const controls = card.querySelector('.playback-controls');
-            
-            if (controls) {
-                if (isExpanded) {
-                    card.classList.remove('expanded');
-                    controls.classList.add('hidden');
-                } else {
-                    card.classList.add('expanded');
-                    controls.classList.remove('hidden');
-                }
-            }
-        });
+        console.log('Wiring audio interactions for card:', card);
         
-        // Add play/pause functionality
-        const playBtn = card.querySelector('.play-pause-btn');
-        const playIcon = card.querySelector('.play-icon');
-        const pauseIcon = card.querySelector('.pause-icon');
+        // Only handle audio event listeners here since clicks are handled by delegation
         const audio = card.querySelector('audio.generated-audio');
         const progressFill = card.querySelector('.progress-fill');
         const currentTimeEl = card.querySelector('.current-time');
         const totalTimeEl = card.querySelector('.total-time');
-        
-        if (playBtn) {
-            playBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                
-                // Pause all other audio elements
-                document.querySelectorAll('audio.generated-audio').forEach(otherAudio => {
-                    if (otherAudio !== audio && !otherAudio.paused) {
-                        otherAudio.pause();
-                        // Reset other play buttons
-                        const otherCard = otherAudio.closest('.recording-card');
-                        if (otherCard) {
-                            const otherPlayIcon = otherCard.querySelector('.play-icon');
-                            const otherPauseIcon = otherCard.querySelector('.pause-icon');
-                            if (otherPlayIcon && otherPauseIcon) {
-                                otherPlayIcon.classList.remove('hidden');
-                                otherPauseIcon.classList.add('hidden');
-                            }
-                        }
-                    }
-                });
-                
-                if (audio) {
-                    if (audio.paused) {
-                        audio.play().catch(e => console.warn('Audio play failed:', e));
-                        if (playIcon && pauseIcon) {
-                            playIcon.classList.add('hidden');
-                            pauseIcon.classList.remove('hidden');
-                        }
-                    } else {
-                        audio.pause();
-                        if (playIcon && pauseIcon) {
-                            playIcon.classList.remove('hidden');
-                            pauseIcon.classList.add('hidden');
-                        }
-                    }
-                }
-            });
-        }
         
         // Add audio event listeners
         if (audio) {
@@ -639,6 +570,8 @@ export function setupVoiceRecordingEventListeners() {
             });
             
             audio.addEventListener('ended', () => {
+                const playIcon = card.querySelector('.play-icon');
+                const pauseIcon = card.querySelector('.pause-icon');
                 if (playIcon && pauseIcon && progressFill && currentTimeEl) {
                     playIcon.classList.remove('hidden');
                     pauseIcon.classList.add('hidden');
@@ -763,6 +696,99 @@ export function setupVoiceRecordingEventListeners() {
   document.querySelectorAll('.recording-card').forEach(card => {
     wireCardInteractions(card);
   });
+
+  // Setup event delegation for dynamically added cards
+  const recordingsContainer = document.querySelector('.recordings-container');
+  if (recordingsContainer) {
+    recordingsContainer.addEventListener('click', (e) => {
+      const card = e.target.closest('.recording-card');
+      if (!card) return;
+      
+      // Don't expand if clicking on control buttons
+      if (e.target.closest('.playback-controls')) {
+        return;
+      }
+      
+      console.log('Delegated click on card:', card);
+      
+      // Close all other expanded cards
+      document.querySelectorAll('.recording-card.expanded').forEach(otherCard => {
+        if (otherCard !== card) {
+          otherCard.classList.remove('expanded');
+          const otherControls = otherCard.querySelector('.playback-controls');
+          if (otherControls) {
+            otherControls.classList.add('hidden');
+          }
+        }
+      });
+      
+      // Toggle current card
+      const isExpanded = card.classList.contains('expanded');
+      const controls = card.querySelector('.playback-controls');
+      
+      console.log('Is expanded:', isExpanded, 'Controls found:', !!controls);
+      
+      if (controls) {
+        if (isExpanded) {
+          console.log('Collapsing card');
+          card.classList.remove('expanded');
+          controls.classList.add('hidden');
+        } else {
+          console.log('Expanding card');
+          card.classList.add('expanded');
+          controls.classList.remove('hidden');
+        }
+      }
+    });
+    
+    // Handle play/pause clicks with delegation
+    recordingsContainer.addEventListener('click', (e) => {
+      const playBtn = e.target.closest('.play-pause-btn');
+      if (!playBtn) return;
+      
+      e.stopPropagation();
+      
+      const card = playBtn.closest('.recording-card');
+      const playIcon = playBtn.querySelector('.play-icon');
+      const pauseIcon = playBtn.querySelector('.pause-icon');
+      const audio = card?.querySelector('audio.generated-audio');
+      
+      console.log('Play button clicked:', playBtn, 'Audio found:', !!audio);
+      
+      if (audio) {
+        // Pause all other audio elements
+        document.querySelectorAll('audio.generated-audio').forEach(otherAudio => {
+          if (otherAudio !== audio && !otherAudio.paused) {
+            otherAudio.pause();
+            // Reset other play buttons
+            const otherCard = otherAudio.closest('.recording-card');
+            if (otherCard) {
+              const otherPlayIcon = otherCard.querySelector('.play-icon');
+              const otherPauseIcon = otherCard.querySelector('.pause-icon');
+              if (otherPlayIcon && otherPauseIcon) {
+                otherPlayIcon.classList.remove('hidden');
+                otherPauseIcon.classList.add('hidden');
+              }
+            }
+          }
+        });
+        
+        if (audio.paused) {
+          audio.play().catch(e => console.warn('Audio play failed:', e));
+          if (playIcon && pauseIcon) {
+            playIcon.classList.add('hidden');
+            pauseIcon.classList.remove('hidden');
+          }
+        } else {
+          audio.pause();
+          if (playIcon && pauseIcon) {
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+          }
+        }
+      }
+    });
+  }
 
   // Search functionality
   const searchInput = document.querySelector('.search-input');
