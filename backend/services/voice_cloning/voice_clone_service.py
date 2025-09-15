@@ -264,17 +264,6 @@ def create_persistent_voice_clone(user_id: str, sample_bytes: bytes, db=None) ->
                     voice_id = f"stub_{user_id[:6]}"
                 else:
                     return None
-            # Rename voice so name == voice_id (idempotent) only if real (not stub_)
-            if not voice_id.startswith("stub_"):
-                try:
-                    rename_payload = {"name": voice_id, "description": "user persistent voice"}
-                    r2 = requests.post(f"https://api.elevenlabs.io/v1/voices/{voice_id}", headers={"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"}, json=rename_payload, timeout=30)
-                    if r2.status_code >= 400:
-                        print({"event": "voice_clone_rename_warning", "voice_id": voice_id, "status": r2.status_code, "body": r2.text[:120]})
-                    else:
-                        print({"event": "voice_clone_renamed", "voice_id": voice_id})
-                except Exception as re:
-                    print({"event": "voice_clone_rename_error", "voice_id": voice_id, "error": str(re)})
         # Persistir en user
         if db is not None:
             try:
@@ -326,16 +315,6 @@ def promote_stub_to_real_clone(user_id: str, sample_bytes: bytes, db=None) -> Op
         if not new_voice_id:
             print({"event": "voice_clone_error", "stage": "promote_parse", "body": resp.text[:200]})
             return None
-        # Rename (idempotent) name -> voice_id
-        try:
-            rename_payload = {"name": new_voice_id, "description": "user persistent voice"}
-            r2 = requests.post(f"https://api.elevenlabs.io/v1/voices/{new_voice_id}", headers={"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"}, json=rename_payload, timeout=30)
-            if r2.status_code >= 400:
-                print({"event": "voice_clone_rename_warning", "voice_id": new_voice_id, "status": r2.status_code, "body": r2.text[:120]})
-            else:
-                print({"event": "voice_clone_renamed", "voice_id": new_voice_id})
-        except Exception as re:
-            print({"event": "voice_clone_rename_error", "voice_id": new_voice_id, "error": str(re)})
         if db is not None:
             try:
                 from bson import ObjectId
@@ -388,16 +367,6 @@ def update_existing_real_clone(user_id: str, sample_bytes: bytes, db=None) -> bo
         if not new_voice_id:
             print({"event": "voice_clone_error", "stage": "update_parse", "body": resp.text[:200]})
             return False
-        # Rename updated voice to enforce invariant
-        try:
-            rename_payload = {"name": new_voice_id, "description": "user updated voice"}
-            r2 = requests.post(f"https://api.elevenlabs.io/v1/voices/{new_voice_id}", headers={"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"}, json=rename_payload, timeout=30)
-            if r2.status_code >= 400:
-                print({"event": "voice_clone_rename_warning", "voice_id": new_voice_id, "status": r2.status_code, "body": r2.text[:120]})
-            else:
-                print({"event": "voice_clone_renamed", "voice_id": new_voice_id})
-        except Exception as re:
-            print({"event": "voice_clone_rename_error", "voice_id": new_voice_id, "error": str(re)})
         if db is not None:
             try:
                 from bson import ObjectId

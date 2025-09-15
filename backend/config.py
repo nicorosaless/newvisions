@@ -35,10 +35,6 @@ class Settings:
     elevenlabs_pool_eviction_strategy: str = "lru"  # reservado para futuras estrategias (lfu, ttl)
     google_api_key: Optional[str] = os.getenv("GOOGLE_API_KEY")
 
-    # Provider-backed pool (nuevo) - feature flag independiente para migración
-    provider_pool_enabled: bool = os.getenv("PROVIDER_POOL_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
-    provider_pool_capacity: int = int(os.getenv("PROVIDER_POOL_CAPACITY", "10"))
-
     # Data
     mongo_uri: Optional[str] = os.getenv("MONGO_URI")
 
