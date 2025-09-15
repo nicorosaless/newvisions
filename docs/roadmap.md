@@ -88,8 +88,17 @@ La arquitectura base (clon persistente + pool LRU per-user + gating Perform) ya 
 - Ajustes dinámicos: mapear `stability`, `similarity`, `style` desde settings, exponer slider en UI.
 - Streaming parcial de audio mientras se genera (si API lo soporta) para reducir TTFP percibido.
 
-## 2. Voice Pool Manager (Diseño Objetivo vs Actual)
-Objetivo: Ventana LRU de priorización (no identidad) sobre `voice_clone_id` per-user ya existentes. La identidad de la voz vive en el documento de usuario; el pool solo conserva “calientes” hasta `capacity`.
+## 2. Voice Pool Manager (LEGACY vs Nuevo Provider-Backed)
+LEGACY (Mongo `voice_pool`): mantenía documentos con `last_used_at` y hacía touch en cada perform. Generaba doble fuente de verdad y costo operativo.
+
+NUEVO (Provider-Backed – especificado en `docs/pool.md`):
+- Fuente de verdad = voces reales en ElevenLabs.
+- In-memory LRU efímero (no persistido) con reconstrucción en startup.
+- Evicción = delete remoto (slot liberado real).
+- Renombrado inmediato `name = voice_id` tras creación.
+- Usuario que apunta a voz borrada → 409 `VOICE_CLONE_REQUIRED` y re-clone.
+
+Estado: Diseño documentado. Implementación pendiente (ver Sección 2.8 Migración Pool Provider-Backed).
 
 ### 2.1 Concepto
 - Pool LRU en Mongo (`voice_pool`): cada doc representa un voice_id persistente + hash de la muestra base normalizada.
@@ -147,6 +156,32 @@ Objetivo: Ventana LRU de priorización (no identidad) sobre `voice_clone_id` per
 - [ ] Integrar lectura `/v1/user/subscription` (permiso `user_read`) y actualizar `elevenlabs_pool_capacity` dinámicamente
 - [x] (Actualizado) Factor coste por modelo aplicado vía `docs/elevenlabs_models_cost.json` y cálculo centralizado (ya no se usa `ELEVEN_LABS_MODEL_COST_FACTOR`)
 
+### 2.6.2 (Nuevo) Provider-Backed Pool (Migración)
+- [ ] Feature flag `PROVIDER_POOL_ENABLED`
+- [ ] Módulo `provider_pool` (structures, ensure_capacity_then_create, evict_one)
+- [ ] Servicio creación clon real: rename inmediato `voice.name = voice_id`
+- [ ] Campo `user.last_perform_at` (persist) + actualización async en `/perform`
+- [ ] Actualizar pipeline `/perform` para validar existencia voz vía provider si falta en cache
+- [ ] Job reconciliación (detectar missing/orphaned, retry deletions, rename corrections)
+- [ ] Métricas pool nuevas (size, evictions, creations, latency)
+- [ ] Logs estructurados (voice_created, voice_evicted, voice_missing_detected, voice_rename_retry)
+- [ ] Estrategia de fallback: si creación falla -> error surfaced (no recrear silenciosamente)
+- [ ] Script migración: drop colección Mongo `voice_pool` (post estabilización)
+- [ ] Retirar endpoint legacy touch (si ya no aporta valor)
+- [ ] Actualizar documentación cliente (frontend) sobre eliminación de touch explícito
+- [ ] Tests: creación con capacity-1, creación con capacity llena (evict), perform voz inexistente (409), reconciliación repone estado
+
+Checklist Validación Pre-Drop Legacy:
+- [ ] `voice_pool_current_size == len(list_provider_voices())` durante 24h
+- [ ] Cero entradas `deletion_pending` tras 3 ciclos de reconciliación
+- [ ] Tasa de errores creación < 2% en ventana 24h
+- [ ] Métrica evictions esperada (no > creations * 0.9) evitando thrash
+
+De-Soporte Legacy:
+- [ ] Remover código `voice_pool` Mongo y modelos asociados
+- [ ] Eliminar variables entorno relacionadas (POOL_ENABLED, etc.) sustituidas por `PROVIDER_POOL_ENABLED`
+- [ ] Documentar en CHANGELOG ruptura menor (migración automática)
+
 Nota compatibilidad variables entorno (14-09-2025):
 El backend ahora acepta ambas `ELEVEN_LABS_MODEL` (preferida) y `ELEVENLABS_MODEL` (legado) para seleccionar el modelo activo. El endpoint `/health` expone `elevenlabs_model` y `model_cost_factor`.
 
@@ -183,6 +218,7 @@ Mejora adicional (14-09-2025): Implementada función `mix_with_fan` en pipeline 
 - Estrategia híbrida LRU+LFU (score = recency * frecuencia).
 - Pre-warm de voces de usuarios activos recientes.
 - Clustering de muestras para compartir un mismo voice_id entre usuarios similares.
+- Auto-ajuste de capacidad basada en `/v1/user/subscription.voice_limit` en tiempo real.
 
 
 ---
