@@ -118,7 +118,7 @@ function applyScrollPolicy(screen) {
   const lock = () => { body.classList.add('no-scroll'); html.classList.add('no-scroll'); body.classList.remove('scroll-enabled'); };
   const unlock = () => { body.classList.remove('no-scroll'); html.classList.remove('no-scroll'); };
   // screens that should be scrollable
-  const scrollable = ['settings', 'voice-clone', 'routine-selection', 'text-input-routine', 'cards-routine', 'numbers-routine', 'star-signs-routine', 'voice-recording'];
+  const scrollable = ['settings', 'voice-clone', 'routine-selection', 'text-input-routine', 'cards-routine', 'numbers-routine', 'star-signs-routine', 'voice-recording', 'pwa-install'];
   if (scrollable.includes(screen)) {
     unlock();
     body.classList.add('scroll-enabled');

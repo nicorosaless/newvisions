@@ -38,6 +38,12 @@ export function renderPWAInstallScreen() {
         <div class="help-section">
           <p>Need help? The app will automatically work once installed on your home screen!</p>
         </div>
+
+        <div class="alt-access">
+          <button id="continue-in-browser" class="auth-button primary" style="margin-top: 16px;">
+            Continue in Browser (this device)
+          </button>
+        </div>
       </div>
     </div>
   `;

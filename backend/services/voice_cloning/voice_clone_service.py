@@ -95,7 +95,7 @@ def get_user_voice_id(user_id: str) -> Optional[str]:
         if not doc:
             return None
         vcid = doc.get("voice_clone_id")
-        if vcid and isinstance(vcid, str) and len(vcid) >= 10:
+        if vcid and isinstance(vcid, str) and len(vcid) > 0:
             return vcid
         return None
     finally:
@@ -114,7 +114,17 @@ def synthesize_with_user_voice(text: str, user_id: str, db=None, user_sample: Op
     """
     api_key = settings.elevenlabs_api_key
     voice_id = get_user_voice_id(user_id)
-    if voice_id and voice_id.startswith("stub_"):
+    # Check provider flag from DB to handle stub behavior
+    provider_is_stub = False
+    if db is not None:
+        try:
+            from bson import ObjectId  # type: ignore
+            oid = ObjectId(user_id)
+            doc = db["users"].find_one({"_id": oid}, {"voice_clone_provider": 1}) or {}
+            provider_is_stub = (doc.get("voice_clone_provider") == "stub")
+        except Exception:
+            provider_is_stub = False
+    if voice_id and (provider_is_stub or voice_id.startswith("stub_")):
         if db is not None and settings.elevenlabs_pool_enabled:
             try:
                 pool = get_voice_pool(db)
@@ -186,12 +196,32 @@ def synthesize_with_user_voice(text: str, user_id: str, db=None, user_sample: Op
                     audio_bytes = b""
             if audio_bytes:
                 print({"event": "voice_clone", "source": "provider_voice_id", "user_id": user_id, "voice_id": voice_id, "bytes": len(audio_bytes)})
+                # Best-effort MRU stamp on provider voice labels
+                try:
+                    if settings.elevenlabs_api_key and voice_id and isinstance(voice_id, str):
+                        import requests as _rq
+                        from datetime import datetime as _dt
+                        now_iso = _dt.utcnow().isoformat() + "Z"
+                        url = f"https://api.elevenlabs.io/v1/voices/{voice_id}/edit"
+                        headers = {"xi-api-key": settings.elevenlabs_api_key, "Content-Type": "application/json"}
+                        payload = {
+                            "labels": {"last_used_at": now_iso, "source": "newvisions", "user_id": user_id},
+                            "description": f"last_used_at:{now_iso}"
+                        }
+                        try:
+                            resp = _rq.post(url, headers=headers, json=payload, timeout=10)
+                            # Ignore HTTP errors but log
+                            if resp.status_code >= 400:
+                                print({"event": "voice_clone_warn", "stage": "update_last_used", "status": resp.status_code, "body": resp.text[:120]})
+                        except Exception as e2:
+                            print({"event": "voice_clone_warn", "stage": "update_last_used_exc", "error": str(e2)})
+                except Exception:
+                    pass
                 return audio_bytes
         except Exception as e:
             print({"event": "voice_clone_error", "stage": "provider_tts", "user_id": user_id, "voice_id": voice_id, "error": str(e)})
-    # Modo stub: si existe voice_clone_id sintético devolver bytes mínimos
-    stub_id = get_user_voice_id(user_id)
-    if stub_id and (not api_key) and stub_id.startswith("stub_"):
+    # Modo stub: si provider flag indica stub y no hay API key, devolver bytes mínimos
+    if (not api_key) and provider_is_stub and voice_id:
         return b"ID3STUBMINIMAL"
     print({"event": "voice_clone", "source": "no_clone_failure", "user_id": user_id})
     return None
@@ -205,30 +235,37 @@ def create_persistent_voice_clone(user_id: str, sample_bytes: bytes, db=None) ->
         return None
     # Stub path primero para evitar cualquier intento de crear clon real sin API key
     if not settings.elevenlabs_api_key:
-        existing_stub = get_user_voice_id(user_id)
-        if existing_stub and existing_stub.startswith("stub_"):
-            # Ensure provider metadata exists
-            if db is not None:
-                try:
-                    from bson import ObjectId  # type: ignore
-                    oid = ObjectId(user_id)
-                    db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_provider": "stub"}})
-                except Exception:
-                    pass
-            return existing_stub
-        synthetic_id = f"stub_{user_id[:6]}"
+        # In stub mode, ensure we use the canonical "username_voice" naming and do not generate stub_* IDs
         if db is not None:
             try:
                 from bson import ObjectId  # type: ignore
                 oid = ObjectId(user_id)
-                db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_id": synthetic_id, "voice_clone_provider": "stub"}})
+                user = db["users"].find_one({"_id": oid}, {"username": 1, "voice_clone_id": 1}) or {}
+                existing_id = user.get("voice_clone_id")
+                if existing_id:
+                    # Respect existing id and just mark provider
+                    db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_provider": "stub", "updated_at": datetime.utcnow()}})
+                    return existing_id
+                uname = (user.get("username") or "user").strip()
+                # Normalize: keep alnum and underscores, collapse repeats
+                import re
+                base = re.sub(r"[^a-zA-Z0-9_]+", "_", f"{uname}_voice")
+                base = re.sub(r"_+", "_", base).strip("_")
+                canonical_id = base[:64] if base else "voice"
+                db["users"].update_one({"_id": oid}, {"$set": {"voice_clone_id": canonical_id, "voice_clone_provider": "stub", "updated_at": datetime.utcnow()}})
                 if settings.elevenlabs_pool_enabled:
-                    pool = get_voice_pool(db)
-                    pool.ensure_voice(synthetic_id, user_id)
+                    try:
+                        pool = get_voice_pool(db)
+                        pool.ensure_voice(canonical_id, user_id)
+                    except Exception as e:
+                        print({"event": "voice_pool_error", "stage": "ensure_stub_named", "error": str(e)})
+                print({"event": "voice_clone", "stage": "stub_created_named", "voice_id": canonical_id})
+                return canonical_id
             except Exception as e:
                 print({"event": "voice_clone_stub_error", "error": str(e)})
-        print({"event": "voice_clone", "stage": "stub_created", "voice_id": synthetic_id})
-        return synthetic_id
+                return None
+        # Without DB handle, fall back to a deterministic non-stub name
+        return f"voice"
     # Si ya existe en user, no recrear
     existing = get_user_voice_id(user_id)
     if existing:
@@ -240,12 +277,28 @@ def create_persistent_voice_clone(user_id: str, sample_bytes: bytes, db=None) ->
                 print({"event": "voice_pool_error", "stage": "ensure_existing", "error": str(e)})
         return existing
     try:
+        from datetime import datetime as _dt
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
             tmp.write(sample_bytes)
             path = tmp.name
         headers = {"xi-api-key": settings.elevenlabs_api_key}
         files = [("files", (f"user_{user_id[:6]}.mp3", open(path, "rb"), "audio/mpeg"))]
-        data = {"name": f"user_{user_id[:6]}", "description": "user persistent voice", "labels": "{}"}
+        # Use stored voice_clone_id or fallback name
+        voice_name = None
+        if db is not None:
+            try:
+                from bson import ObjectId  # type: ignore
+                oid = ObjectId(user_id)
+                udoc = db["users"].find_one({"_id": oid}, {"voice_clone_id": 1, "username": 1}) or {}
+                voice_name = udoc.get("voice_clone_id") or (f"{(udoc.get('username') or 'user')}_voice")
+            except Exception:
+                voice_name = None
+        if not voice_name:
+            voice_name = f"user_{user_id[:6]}"
+        now_iso = _dt.utcnow().isoformat() + "Z"
+        import json as _json
+        labels_obj = {"created_at": now_iso, "last_used_at": now_iso, "source": "newvisions", "user_id": user_id}
+        data = {"name": voice_name, "description": f"created_at:{now_iso}", "labels": _json.dumps(labels_obj)}
         resp = requests.post("https://api.elevenlabs.io/v1/voices/add", headers=headers, files=files, data=data, timeout=90)
         fallback_stub_allowed = settings.env and settings.env.lower() != 'production'
         try:
@@ -299,12 +352,16 @@ def promote_stub_to_real_clone(user_id: str, sample_bytes: bytes, db=None) -> Op
     if not existing or not existing.startswith("stub_"):
         return None
     try:
+        from datetime import datetime as _dt
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
             tmp.write(sample_bytes)
             path = tmp.name
         headers = {"xi-api-key": settings.elevenlabs_api_key}
         files = [("files", (f"user_{user_id[:6]}.mp3", open(path, "rb"), "audio/mpeg"))]
-        data = {"name": f"user_{user_id[:6]}", "description": "user persistent voice", "labels": "{}"}
+        now_iso = _dt.utcnow().isoformat() + "Z"
+        import json as _json
+        labels_obj = {"created_at": now_iso, "last_used_at": now_iso, "source": "newvisions", "user_id": user_id}
+        data = {"name": f"user_{user_id[:6]}", "description": f"created_at:{now_iso}", "labels": _json.dumps(labels_obj)}
         resp = requests.post("https://api.elevenlabs.io/v1/voices/add", headers=headers, files=files, data=data, timeout=90)
         try:
             resp.raise_for_status()
@@ -351,12 +408,16 @@ def update_existing_real_clone(user_id: str, sample_bytes: bytes, db=None) -> bo
         return False
     # Crear nueva y reemplazar (mantener antigua sin borrar remoto todavía)
     try:
+        from datetime import datetime as _dt
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
             tmp.write(sample_bytes)
             path = tmp.name
         headers = {"xi-api-key": settings.elevenlabs_api_key}
         files = [("files", (f"user_{user_id[:6]}_upd.mp3", open(path, "rb"), "audio/mpeg"))]
-        data = {"name": f"user_{user_id[:6]}_v2", "description": "user updated voice", "labels": "{}"}
+        now_iso = _dt.utcnow().isoformat() + "Z"
+        import json as _json
+        labels_obj = {"updated_at": now_iso, "last_used_at": now_iso, "source": "newvisions", "user_id": user_id}
+        data = {"name": f"user_{user_id[:6]}_v2", "description": f"updated_at:{now_iso}", "labels": _json.dumps(labels_obj)}
         resp = requests.post("https://api.elevenlabs.io/v1/voices/add", headers=headers, files=files, data=data, timeout=90)
         try:
             resp.raise_for_status()

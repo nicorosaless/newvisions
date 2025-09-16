@@ -57,12 +57,16 @@ async function performLogin(credentials) {
     const resp = await loginUser(credentials);
     if (resp?.user_id) {
       try { localStorage.setItem('user_id', resp.user_id); } catch(_) {}
+      try { if (resp.username) localStorage.setItem('username', resp.username); } catch(_) {}
       // Clear sign-out flag since user is logging in again
       localStorage.removeItem('signed_out');
       // minimal cookie (1 year)
       const expires = new Date();
       expires.setFullYear(expires.getFullYear() + 1);
       document.cookie = `user_id=${encodeURIComponent(resp.user_id)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+      if (resp.username) {
+        document.cookie = `username=${encodeURIComponent(resp.username)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+      }
       // Prefetch meta (credits)
       try {
         const { getUserMeta } = await import('../api.ts');

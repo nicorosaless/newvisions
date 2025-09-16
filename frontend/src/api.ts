@@ -4,7 +4,29 @@
 // -----------------------------
 // Configuration
 // -----------------------------
-const DEFAULT_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+// Compute a robust default base URL. Prefer VITE_API_BASE_URL when provided,
+// and ensure it includes the '/api' prefix. In dev, fall back to same-origin '/api'.
+function computeBaseUrl(): string {
+	const raw = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
+	let base = raw && raw.trim().length ? raw.trim() : '/api';
+	try {
+		const u = new URL(base, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173');
+		// Ensure pathname ends with '/api' (either exact '/api' or '/something/api')
+		if (!u.pathname.match(/\/?api\/?$/)) {
+			// If base had no path or a different path, append '/api'
+			u.pathname = (u.pathname.replace(/\/$/, '')) + '/api';
+		}
+		// Remove trailing slash for consistency
+		return u.toString().replace(/\/$/, '');
+	} catch {
+		// If not a valid URL, treat as relative and normalize
+		if (!base.startsWith('/')) base = '/' + base;
+		if (!base.endsWith('/api')) base = base.replace(/\/$/, '') + '/api';
+		return base;
+	}
+}
+
+const DEFAULT_BASE_URL = computeBaseUrl();
 
 export interface ApiClientOptions {
 	baseUrl?: string;
@@ -234,17 +256,26 @@ export class ApiClient {
 		return this.request<UserMetaResponse>(`/users/${encodeURIComponent(userId)}/meta`, { method: 'GET', skipAuth: true });
 	}
 
-	getUserVoiceMeta(userId: string): Promise<UserVoiceMetaResponse> {
-		return this.request<UserVoiceMetaResponse>(`/users/${encodeURIComponent(userId)}/voice/meta`, { method: 'GET', skipAuth: true });
+
+	getUserVoiceMeta(userId: string, opts?: { debug?: boolean }): Promise<UserVoiceMetaResponse> {
+		const q = opts?.debug ? '?debug=1' : '';
+		return this.request<UserVoiceMetaResponse>(`/users/${encodeURIComponent(userId)}/voice/meta${q}`, { method: 'GET', skipAuth: true });
+	}
+
+	// Explicit helper to trigger preperform preparation without caring about payload
+	preperformPrepare(userId: string, debug: boolean = false): Promise<UserVoiceMetaResponse> {
+		return this.getUserVoiceMeta(userId, { debug });
+	}
+
+	materializeUserVoice(userId: string, createIfMissing: boolean = false): Promise<any> {
+		const q = createIfMissing ? '?create_if_missing=1' : '';
+		return this.request<any>(`/users/${encodeURIComponent(userId)}/voice/materialize${q}`, { method: 'POST', skipAuth: true });
 	}
 
 	getUserVoiceSource(userId: string): Promise<UserVoiceSourceResponse> {
 		return this.request<UserVoiceSourceResponse>(`/users/${encodeURIComponent(userId)}/voice/source`, { method: 'GET', skipAuth: true });
 	}
 
-	touchVoicePool(userId: string): Promise<{status:string;voice_clone_id:string;position:number;size:number;enabled:boolean}> {
-		return this.request(`/users/${encodeURIComponent(userId)}/voice/pool/touch`, { method: 'POST', skipAuth: true });
-	}
 
 	perform(data: PerformRequest): Promise<PerformResponse> {
 		return this.request<PerformResponse>('/perform', {
@@ -254,10 +285,10 @@ export class ApiClient {
 		});
 	}
 
-	uploadUserVoice(userId: string, audioBase64: string, mimeType?: string, durationSeconds?: number): Promise<VoiceUploadResponse> {
+	uploadUserVoice(userId: string, audioBase64: string, mimeType?: string, durationSeconds?: number, desiredVoiceName?: string): Promise<VoiceUploadResponse> {
 		return this.request<VoiceUploadResponse>(`/users/${encodeURIComponent(userId)}/voice`, {
 			method: 'POST',
-			body: JSON.stringify({ audio_base64: audioBase64, mime_type: mimeType, duration_seconds: durationSeconds }),
+			body: JSON.stringify({ audio_base64: audioBase64, mime_type: mimeType, duration_seconds: durationSeconds, desired_voice_name: desiredVoiceName }),
 			skipAuth: true
 		});
 	}
@@ -298,8 +329,10 @@ export const loginUser = (data: LoginRequest) => apiClient.login(data);
 export const updateUserSettings = (userId: string, settings: SettingsUpdateRequest) => apiClient.updateUserSettings(userId, settings);
 export const getUserSettings = (userId: string) => apiClient.getUserSettings(userId);
 export const getUserMeta = (userId: string) => apiClient.getUserMeta(userId);
+export const preperformPrepare = (userId: string, debug: boolean = false) => apiClient.preperformPrepare(userId, debug);
+export const materializeUserVoice = (userId: string, createIfMissing: boolean = false) => apiClient.materializeUserVoice(userId, createIfMissing);
 export const performRoutine = (data: PerformRequest) => apiClient.perform(data);
-export const uploadUserVoice = (userId: string, audioBase64: string, mimeType?: string, durationSeconds?: number) => apiClient.uploadUserVoice(userId, audioBase64, mimeType, durationSeconds);
+export const uploadUserVoice = (userId: string, audioBase64: string, mimeType?: string, durationSeconds?: number, desiredVoiceName?: string) => apiClient.uploadUserVoice(userId, audioBase64, mimeType, durationSeconds, desiredVoiceName);
 
 // Example usage (remove or adapt in integration phase):
 // fetchThought('Movies', 'Inception').then(console.log).catch(console.error);

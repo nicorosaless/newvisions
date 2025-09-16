@@ -74,9 +74,21 @@ export function setupTextInputRoutineEventListeners(routineType) {
   }
 }
 
-function handleRoutinePerform(routineType, value) {
-  // Navigate to voice recording screen with the routine data
-  import('../navigation.js').then(({ navigateToScreen }) => {
-    navigateToScreen('voice-recording', routineType, value);
-  });
+async function handleRoutinePerform(routineType, value) {
+  try {
+    const userId = (document.cookie.match(/user_id=([^;]+)/) || [])[1] || localStorage.getItem('user_id');
+    if (userId) {
+      const { getUserSettings } = await import('../api.ts');
+      const s = await getUserSettings(userId).catch(() => null);
+      if (s) {
+        // Persist to cookies so the next screen can render immediately without flicker
+        const expires = new Date(); expires.setFullYear(expires.getFullYear() + 1);
+        if (typeof s.voice_note_name_default === 'boolean') document.cookie = `voice-note-name-default=${s.voice_note_name_default}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+        if (s.voice_note_name) document.cookie = `voice-note-name=${encodeURIComponent(s.voice_note_name)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+        if (s.voice_note_date) document.cookie = `voice-note-date=${encodeURIComponent(s.voice_note_date)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+      }
+    }
+  } catch {}
+  const { navigateToScreen } = await import('../navigation.js');
+  navigateToScreen('voice-recording', routineType, value);
 }

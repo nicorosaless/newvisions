@@ -29,7 +29,8 @@ function isPWAEnvironment() {
 
 async function initializeApp() {
   // First check if the app should show PWA installation screen
-  if (isPWAEnvironment() && !isPWA()) {
+  const skipPrompt = localStorage.getItem('skip_pwa_prompt') === 'true';
+  if (isPWAEnvironment() && !isPWA() && !skipPrompt) {
     console.log('App accessed via browser, showing PWA installation guide');
     setCurrentScreen('pwa-install');
     renderScreen();

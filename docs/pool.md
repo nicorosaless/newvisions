@@ -1,5 +1,7 @@
 # Voice Pool (LRU) - Especificación
 
+Nota relacionada: ver también `docs/voice_clone_flow.md` para el flujo completo de creación (Generate Voice Clone), uso en `/perform` y manejo de capacidad en provider.
+
 Última actualización: 14-09-2025
 
 ## 1. Objetivo

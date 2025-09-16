@@ -73,36 +73,26 @@ export function setupCardsRoutineEventListeners() {
   const backBtn = document.getElementById('back-to-routine-selection');
   if (backBtn) {
     backBtn.addEventListener('click', () => {
-      // Navigation will be handled by the global navigation listener
+      // Navigation handled globally
     });
   }
 
-  // Handle value selection
   const valueButtons = document.querySelectorAll('.value-button');
   valueButtons.forEach(button => {
     button.addEventListener('click', () => {
-      // Remove active class from all value buttons
       valueButtons.forEach(btn => btn.classList.remove('active'));
-      
-      // Add active class to clicked button
       button.classList.add('active');
-      
       selectedValue = button.dataset.value;
       updateSelectedCard();
       updatePerformButton();
     });
   });
 
-  // Handle suit selection
   const suitButtons = document.querySelectorAll('.suit-button');
   suitButtons.forEach(button => {
     button.addEventListener('click', () => {
-      // Remove active class from all suit buttons
       suitButtons.forEach(btn => btn.classList.remove('active'));
-      
-      // Add active class to clicked button
       button.classList.add('active');
-      
       selectedSuit = button.dataset.suit;
       updateSelectedCard();
       updatePerformButton();
@@ -121,43 +111,35 @@ export function setupCardsRoutineEventListeners() {
   function updateSelectedCard() {
     const valueDisplay = document.getElementById('selected-value');
     const suitDisplay = document.getElementById('selected-suit');
-    
     if (valueDisplay) valueDisplay.textContent = selectedValue || '-';
     if (suitDisplay) {
-      if (selectedSuit) {
-        const suitIcons = {
-          clubs: '♣',
-          hearts: '♥',
-          spades: '♠',
-          diamonds: '♦'
-        };
-        suitDisplay.textContent = suitIcons[selectedSuit];
-      } else {
-        suitDisplay.textContent = '-';
-      }
+      const suitIcons = { clubs: '♣', hearts: '♥', spades: '♠', diamonds: '♦' };
+      suitDisplay.textContent = selectedSuit ? suitIcons[selectedSuit] : '-';
     }
   }
 
   function updatePerformButton() {
     const performBtn = document.getElementById('perform-cards-btn');
-    if (performBtn) {
-      performBtn.disabled = !(selectedValue && selectedSuit);
-    }
+    if (performBtn) performBtn.disabled = !(selectedValue && selectedSuit);
   }
 }
 
-function handleCardsRoutinePerform(value, suit) {
-  const suitNames = {
-    clubs: 'Clubs',
-    hearts: 'Hearts',
-    spades: 'Spades',
-    diamonds: 'Diamonds'
-  };
-  
+async function handleCardsRoutinePerform(value, suit) {
+  const suitNames = { clubs: 'Clubs', hearts: 'Hearts', spades: 'Spades', diamonds: 'Diamonds' };
   const cardValue = `${value} of ${suitNames[suit]}`;
-  
-  // Navigate to voice recording screen with the routine data
-  import('../navigation.js').then(({ navigateToScreen }) => {
-    navigateToScreen('voice-recording', 'cards', cardValue);
-  });
+  try {
+    const userId = (document.cookie.match(/user_id=([^;]+)/) || [])[1] || localStorage.getItem('user_id');
+    if (userId) {
+      const { getUserSettings } = await import('../api.ts');
+      const s = await getUserSettings(userId).catch(() => null);
+      if (s) {
+        const expires = new Date(); expires.setFullYear(expires.getFullYear() + 1);
+        if (typeof s.voice_note_name_default === 'boolean') document.cookie = `voice-note-name-default=${s.voice_note_name_default}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+        if (s.voice_note_name) document.cookie = `voice-note-name=${encodeURIComponent(s.voice_note_name)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+        if (s.voice_note_date) document.cookie = `voice-note-date=${encodeURIComponent(s.voice_note_date)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+      }
+    }
+  } catch {}
+  const { navigateToScreen } = await import('../navigation.js');
+  navigateToScreen('voice-recording', 'cards', cardValue);
 }

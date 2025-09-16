@@ -30,8 +30,7 @@ from .services.voice_cloning.voice_clone_service import (
     promote_stub_to_real_clone,
     update_existing_real_clone,
 )
-from .services.voice_cloning.voice_pool import VoicePoolManager
-from .services.voice_cloning.provider_pool import get_provider_voice_pool
+# Pool logic removed: starting fresh for perform flow
 
 api_router = APIRouter()
 
@@ -324,6 +323,7 @@ class VoiceUploadRequest(BaseModel):
     audio_base64: str = Field(min_length=20, description="Base64 encoded audio (webm/mp4/wav)")
     mime_type: Optional[str] = Field(default=None, description="Client-reported MIME type")
     duration_seconds: Optional[float] = Field(default=None, description="Client measured duration in seconds")
+    desired_voice_name: Optional[str] = Field(default=None, description="Preferred persistent voice_clone_id (e.g., username_voice)")
 
 
 @api_router.post("/users/{user_id}/voice")
@@ -459,47 +459,34 @@ def upload_user_voice(user_id: str, payload: VoiceUploadRequest):
                 "updated_at": datetime.utcnow()
             }}
         )
-        action = None
-        clone_id = get_user_voice_id(str(oid))
+        # Assign or keep voice_clone_id without contacting providers
+        users_doc = users.find_one({"_id": oid}, {"voice_clone_id": 1, "username": 1, "voice_clone_provider": 1}) or {}
+        clone_id = users_doc.get("voice_clone_id")
         if not clone_id:
-            # Primera creación (stub o real según API key)
-            try:
-                clone_id = create_persistent_voice_clone(str(oid), mp3_bytes, db=db)
-                action = "created_stub" if clone_id and clone_id.startswith("stub_") else ("created_real" if clone_id else "create_failed")
-            except Exception as e:
-                print({"event": "voice_clone_error", "stage": "post_upload_create", "error": str(e)})
-                clone_id = None
-                action = "create_failed"
-        else:
-            # Existe clon; intentar promoción o actualización
-            if clone_id.startswith("stub_") and settings.elevenlabs_api_key:
-                try:
-                    new_id = promote_stub_to_real_clone(str(oid), mp3_bytes, db=db)
-                    if new_id:
-                        clone_id = new_id
-                        action = "promoted_stub"
-                    else:
-                        action = "promote_failed"
-                except Exception as e:
-                    print({"event": "voice_clone_error", "stage": "promote", "error": str(e)})
-                    action = "promote_failed"
-            elif settings.elevenlabs_api_key and not clone_id.startswith("stub_"):
-                try:
-                    updated = update_existing_real_clone(str(oid), mp3_bytes, db=db)
-                    action = "updated_real" if updated else "update_skipped"
-                except Exception as e:
-                    print({"event": "voice_clone_error", "stage": "update", "error": str(e)})
-                    action = "update_failed"
+            # Normalize desired voice name if provided; else derive from username
+            def _normalize_name(name: str) -> str:
+                import re
+                base = re.sub(r"[^a-zA-Z0-9_]+", "_", name.strip())
+                base = re.sub(r"_+", "_", base).strip("_")
+                return base[:64] if base else "voice"
+            desired = payload.desired_voice_name.strip() if payload.desired_voice_name else None
+            if desired:
+                clone_id = _normalize_name(desired)
             else:
-                action = "noop"
-        return {"status": "ok", "bytes": len(mp3_bytes), "hash": voice_hash, "duration": dur, "dedup": False, "transcoded": transcoded, "voice_clone_id": clone_id, "action": action}
+                uname = users_doc.get("username") or "user"
+                clone_id = _normalize_name(f"{uname}_voice")
+            users.update_one({"_id": oid}, {"$set": {"voice_clone_id": clone_id, "voice_clone_provider": "stub", "voice_clone_updated_at": datetime.utcnow()}})
+        else:
+            users.update_one({"_id": oid}, {"$set": {"voice_clone_updated_at": datetime.utcnow()}})
+
+        return {"status": "ok", "bytes": len(mp3_bytes), "hash": voice_hash, "duration": dur, "dedup": False, "transcoded": transcoded, "voice_clone_id": clone_id, "action": "saved_only"}
     finally:
         client.close()
 
 
 # --------------------------- Voice Meta Endpoint ---------------------------
 @api_router.get("/users/{user_id}/voice/meta")
-def get_user_voice_meta(user_id: str):
+def get_user_voice_meta(user_id: str, debug: Optional[int] = 0):
     """Return status of user's voice assets: sample presence, clone id, and pool membership."""
     db, client = get_db()
     try:
@@ -509,25 +496,104 @@ def get_user_voice_meta(user_id: str):
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid user_id")
         users = db["users"]
-        user = users.find_one({"_id": oid}, {"recordedVoiceBinary": 1, "voice_clone_id": 1})
+        user = users.find_one({"_id": oid}, {"recordedVoiceBinary": 1, "voice_clone_id": 1, "voice_clone_name": 1, "provider_voice_id": 1})
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         has_sample = bool(user.get("recordedVoiceBinary"))
-        voice_clone_id = user.get("voice_clone_id")
-        has_clone = bool(voice_clone_id)
-        in_pool = False
-        if voice_clone_id:
+        # Prefer friendly name if present for UI display
+        voice_clone_name = user.get("voice_clone_name")
+        stored_voice_clone_id = user.get("voice_clone_id")
+        provider_voice_id = user.get("provider_voice_id")
+        display_clone_id = voice_clone_name or stored_voice_clone_id
+        has_clone = bool(display_clone_id)
+        # Pre-perform: only invoke when user has both a stored sample and a voice_clone_id
+        pre_info = None
+        if has_sample and has_clone:
             try:
-                vpm = VoicePoolManager(db=db)
-                in_pool = vpm.has_voice(voice_clone_id)
-            except Exception:
-                in_pool = False
-        return {
+                from . import preperform as _pre
+                # Print to terminal; optionally include in response when debug
+                _pre.run(db, user_id=user_id, voice_clone_id=display_clone_id)
+                if debug:
+                    pre_info = _pre.collect(db, user_id=user_id, voice_clone_id=display_clone_id)
+            except Exception as _e:
+                print({"event": "preperform_invoke_error", "error": str(_e)})
+        else:
+            # Skip preperform until prerequisites are satisfied
+            print({"event": "preperform_skipped", "reason": "missing_sample_or_clone", "has_sample": has_sample, "has_clone": has_clone})
+        # Compute in_pool from REAL provider voices
+        in_pool = False
+        try:
+            from . import preperform as _pre
+            voices = _pre.list_elevenlabs_voices_mru()
+            if voices:
+                for v in voices:
+                    labels = v.get("labels") or {}
+                    if str(labels.get("user_id")) == str(user_id):
+                        in_pool = True
+                        break
+                    if provider_voice_id and v.get("voice_id") == provider_voice_id:
+                        in_pool = True
+                        break
+                    if display_clone_id and v.get("name") == display_clone_id:
+                        in_pool = True
+                        break
+        except Exception as pool_e:
+            print({"event": "meta_inpool_error", "error": str(pool_e)})
+        payload = {
             "hasSample": has_sample,
             "hasClone": has_clone,
-            "voiceCloneId": voice_clone_id,
+            "voiceCloneId": display_clone_id,
             "inPool": in_pool,
         }
+        if debug and pre_info is not None:
+            payload["preperform"] = pre_info
+        return payload
+    finally:
+        client.close()
+
+
+@api_router.post("/users/{user_id}/voice/materialize")
+def materialize_user_voice_enqueue(user_id: str, create_if_missing: Optional[int] = 1):
+    """Materialize the enqueue plan at provider: delete LRU if full and touch/create user's MRU.
+    create_if_missing=1 will try to create the provider voice using stored sample.
+    """
+    db, client = get_db()
+    try:
+        from bson import ObjectId
+        try:
+            oid = ObjectId(user_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid user_id")
+        users = db["users"]
+        # Also retrieve sample presence to auto-create when available
+        user = users.find_one({"_id": oid}, {"voice_clone_id": 1, "recordedVoiceBinary": 1})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        voice_clone_id = user.get("voice_clone_id")
+        sample_present = bool(user.get("recordedVoiceBinary"))
+        try:
+            from . import preperform as _pre
+            # If caller didn't force off creation, auto-create when sample exists
+            create_flag = bool(create_if_missing) or sample_present
+            result = _pre.materialize_enqueue(db, user_id=user_id, voice_clone_id=voice_clone_id, create_if_missing=create_flag)
+            # Print REAL provider slots after materialize to confirm state
+            try:
+                sub = _pre.get_subscription_info()
+                mru = _pre.list_elevenlabs_voices_mru()
+                print(f"[materialize] slots: used={sub.get('voice_slots_used')} / limit={sub.get('voice_limit')} tier={sub.get('tier')}")
+                if mru:
+                    top = mru[0]
+                    last = mru[-1]
+                    print(f"[materialize] MRU: {top.get('name')} ({top.get('voice_id')}) at {top.get('last_used_at')}")
+                    print(f"[materialize] LRU: {last.get('name')} ({last.get('voice_id')}) at {last.get('last_used_at')}")
+                    names = [f"{v.get('name')}({v.get('voice_id')})" for v in mru[:10]]
+                    print("[materialize] REAL slots:", ", ".join(names) + (" ..." if len(mru) > 10 else ""))
+            except Exception as log_e:
+                print({"event": "materialize_log_error", "error": str(log_e)})
+            return result
+        except Exception as _e:
+            print({"event": "preperform_materialize_error", "error": str(_e)})
+            raise HTTPException(status_code=500, detail="Materialize failed")
     finally:
         client.close()
 
@@ -570,37 +636,7 @@ def get_user_voice_source(user_id: str):
         client.close()
 
 
-@api_router.post("/users/{user_id}/voice/pool/touch")
-def post_voice_pool_touch(user_id: str):
-    """Garantiza que el voice_clone_id del usuario quede como MRU en el pool.
-    Devuelve la posición (0 = MRU) tras la operación y tamaño total.
-    Si usuario no tiene voice_clone_id responde 404.
-    """
-    db, client = get_db()
-    try:
-        from bson import ObjectId
-        try:
-            oid = ObjectId(user_id)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid user_id")
-        users = db["users"]
-        user = users.find_one({"_id": oid}, {"voice_clone_id": 1})
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        vcid = user.get("voice_clone_id")
-        if not vcid:
-            raise HTTPException(status_code=404, detail="User has no voice_clone_id")
-        vpm = VoicePoolManager(db=db)
-        # Ensure/touch moves to MRU or inserts
-        before_docs = list(db["voice_pool"].find({}, {"voice_id": 1, "last_used_at": 1})) if vpm.enabled else []
-        vpm.ensure_voice(vcid, user_id)
-        # Compute ordering (MRU = most recent last_used_at desc)
-        coll = db["voice_pool"]
-        docs = list(coll.find({}, {"voice_id": 1, "last_used_at": 1}).sort("last_used_at", -1)) if vpm.enabled else []
-        position = next((i for i, d in enumerate(docs) if d.get("voice_id") == vcid), 0)
-        return {"status": "ok", "voice_clone_id": vcid, "position": position, "size": len(docs), "enabled": vpm.enabled}
-    finally:
-        client.close()
+## Endpoint eliminado: /users/{user_id}/voice/pool/touch (limpieza de pool)
 
 
 # --------------------------- Perform Endpoint (v1) ---------------------------
@@ -678,13 +714,7 @@ def perform(payload: PerformRequest):
         if not cloned_audio_bytes:
             raise HTTPException(status_code=502, detail="Voice clone synthesis failed")
         voice_source = "provider_voice_id"
-        # Provider-backed pool usage registration (non-blocking)
-        try:
-            pool = get_provider_voice_pool()
-            if pool.enabled and provider_id:
-                pool.register_use(provider_id)
-        except Exception as pool_e:
-            print({"event": "provider_pool_register_error", "error": str(pool_e)})
+        # Pool provider usage registration removed (clean slate for perform)
         # Optional background mix
         try:
             if settings_obj.get('background_sound'):

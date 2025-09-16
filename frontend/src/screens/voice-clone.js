@@ -70,6 +70,28 @@ export function renderVoiceCloneScreen() {
           </div>
         </div>
 
+        <!-- Upload MP3 Section -->
+        <div class="settings-section">
+          <h2 class="section-title">Upload MP3 Sample</h2>
+          <div class="settings-group">
+            <div class="recording-card">
+              <div class="recording-main" style="display:flex; align-items:center; gap:12px;">
+                <input type="file" id="mp3-file-input" accept="audio/mpeg,audio/mp3,audio/*" style="display:none;" />
+                <button class="voice-clone-button secondary-action" id="upload-mp3-button">
+                  <div class="button-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 5v14"></path>
+                      <path d="M5 12l7-7 7 7"></path>
+                    </svg>
+                  </div>
+                  <span>Upload MP3</span>
+                </button>
+                <span class="upload-hint" style="opacity:0.8; font-size:0.9em;">MP3, 30–60 seconds, ≤3MB</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Playback Section -->
         <div class="settings-section" id="playback-section" style="display: none;">
           <h2 class="section-title">Review Your Recording</h2>
@@ -85,7 +107,7 @@ export function renderVoiceCloneScreen() {
                     <div class="wave-bar"></div>
                     <div class="wave-bar"></div>
                     <div class="wave-bar"></div>
-                    class="wave-bar"></div>
+                    <div class="wave-bar"></div>
                   </div>
                 </div>
                 <audio controls id="recorded-audio" class="audio-player">
@@ -148,660 +170,212 @@ export function renderVoiceCloneScreen() {
     </div>`;
 }
 
+// Screen-specific event wiring for Voice Clone UI
 export function setupVoiceCloneEventListeners() {
-  console.log('Setting up voice clone event listeners');
-  
-  // NEW: fetch meta to condition UI (single clone per user)
-  const userId = (document.cookie.match(/user_id=([^;]+)/) || [])[1] || localStorage.getItem('user_id');
-  if (userId) {
-    (async () => {
-      try {
-        const { apiClient } = await import('../api.ts');
-        const meta = await apiClient.getUserVoiceMeta(userId).catch(() => null);
-        if (meta && meta.hasClone) {
-          // Hide recording instructions title text to emphasize existing sample reuse
-          const instructionTitle = document.querySelector('.instruction-title');
-          if (instructionTitle) instructionTitle.textContent = 'Your Voice Clone is Ready';
-          const instructionDesc = document.querySelector('.instruction-description');
-          if (instructionDesc) instructionDesc.textContent = 'You can listen to your current sample or record a new one to update it.';
-          // Load existing sample audio
-            const source = await apiClient.getUserVoiceSource(userId).catch(() => null);
-            if (source && source.audio_base64) {
-              const playbackSection = document.getElementById('playback-section');
-              const recordedAudio = document.getElementById('recorded-audio');
-              const generateButton = document.getElementById('generate-voice-clone');
-              const recordingStatus = document.getElementById('recording-status');
-              if (playbackSection) playbackSection.style.display = 'block';
-              if (recordingStatus) {
-                recordingStatus.style.display = 'block';
-                const statusText = recordingStatus.querySelector('.status-text');
-                if (statusText) statusText.textContent = 'Current sample loaded';
-              }
-              if (recordedAudio) {
-                try {
-                  const blob = base64ToBlob(source.audio_base64, source.mime || 'audio/mpeg');
-                  const url = URL.createObjectURL(blob);
-                  recordedAudio.src = url;
-                } catch (e) { console.warn('Failed to set existing sample audio', e); }
-              }
-              if (generateButton) {
-                generateButton.textContent = 'Update Voice Sample';
-              }
-            }
-        }
-      } catch (e) {
-        console.warn('Voice meta init error', e);
-      }
-    })();
-  }
-  
-  // helper for converting base64 (no data URI) to blob
-  function base64ToBlob(b64, mime) {
-    const byteChars = atob(b64);
-    const len = byteChars.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) bytes[i] = byteChars.charCodeAt(i);
-    return new Blob([bytes], { type: mime });
-  }
-
-  let mediaRecorder = null;
-  let recordedChunks = [];
-  let recordingStartTime = null;
-  let timerInterval = null;
-  let stream = null;
-  
-  const recordButton = document.getElementById('record-button');
-  const stopButton = document.getElementById('stop-recording');
-  const reRecordButton = document.getElementById('re-record');
-  const generateButton = document.getElementById('generate-voice-clone');
-  const microphoneContainer = document.getElementById('microphone-container');
-  const recordingTimer = document.getElementById('recording-timer');
-  const recordingControls = document.getElementById('recording-controls');
-  const recordingStatus = document.getElementById('recording-status');
+  // Elements
+  const recordBtn = document.getElementById('record-button');
+  const stopBtn = document.getElementById('stop-recording');
+  const statusEl = document.getElementById('recording-status')?.querySelector('.status-text');
+  const timerWrap = document.getElementById('recording-timer');
+  const timerDisplay = document.getElementById('timer-display');
+  const controlsWrap = document.getElementById('recording-controls');
   const playbackSection = document.getElementById('playback-section');
   const processingSection = document.getElementById('processing-section');
-  const timerDisplay = document.getElementById('timer-display');
-  const recordedAudio = document.getElementById('recorded-audio');
+  const audioEl = document.getElementById('recorded-audio');
+  const uploadBtn = document.getElementById('upload-mp3-button');
+  const fileInput = document.getElementById('mp3-file-input');
+  const reRecordBtn = document.getElementById('re-record');
+  const generateBtn = document.getElementById('generate-voice-clone');
+  let hasUploadedSample = false;
 
-  console.log('DOM elements found:', {
-    recordButton: !!recordButton,
-    stopButton: !!stopButton,
-    reRecordButton: !!reRecordButton,
-    generateButton: !!generateButton,
-    microphoneContainer: !!microphoneContainer,
-    recordingTimer: !!recordingTimer,
-    recordingControls: !!recordingControls,
-    recordingStatus: !!recordingStatus,
-    playbackSection: !!playbackSection,
-    processingSection: !!processingSection,
-    timerDisplay: !!timerDisplay,
-    recordedAudio: !!recordedAudio
-  });
-
-  // Check microphone permission status on load
-  checkMicrophonePermission();
-
-  // Record button click handler
-  if (recordButton) {
-    recordButton.addEventListener('click', async () => {
-      console.log('Record button clicked');
-      
-      // Check if we're on a secure context (HTTPS or localhost or local network)
-      const isLocalNetwork = /^192\.168\.|^10\.|^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(window.location.hostname);
-      console.log('Secure context:', isSecureContext);
-      console.log('Hostname:', window.location.hostname);
-      console.log('Is local network:', isLocalNetwork);
-      
-      if (!isSecureContext && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1') && !isLocalNetwork) {
-        showPermissionError('This feature requires a secure connection (HTTPS). Please access this site over HTTPS or use localhost.');
-        return;
-      }
-      
-      // Check if getUserMedia is supported (try both modern and legacy APIs)
-      const hasModernAPI = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
-      const hasLegacyAPI = navigator.getUserMedia || navigator.webkitGetUserMedia;
-      console.log('Modern API available:', hasModernAPI);
-      console.log('Legacy API available:', hasLegacyAPI);
-      
-      if (!hasModernAPI && !hasLegacyAPI) {
-        showPermissionError('Your browser does not support microphone access. Please use a modern browser like Chrome, Firefox, Safari, or Edge.');
-        return;
-      }
-      
-      // Show permission request dialog
-      const permissionGranted = await requestMicrophonePermission();
-      if (!permissionGranted) {
-        return;
-      }
-      
-      await startRecording();
-    });
-  } else {
-    console.error('Record button not found');
+  // Build/augment waveform bars with staggered delays
+  const waveform = document.querySelector('.waveform');
+  if (waveform) {
+    const desiredBars = 40;
+    // Clear preset bars to avoid uneven spacing
+    while (waveform.firstChild) waveform.removeChild(waveform.firstChild);
+    for (let i = 0; i < desiredBars; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'wave-bar';
+      bar.style.setProperty('--delay', `${(i % 20) * 0.08}s`);
+      waveform.appendChild(bar);
+    }
   }
 
-  // Stop recording button click handler
-  if (stopButton) {
-    stopButton.addEventListener('click', stopRecording);
-  }
-
-  // Re-record button click handler
-  if (reRecordButton) {
-    reRecordButton.addEventListener('click', resetRecording);
-  }
-
-  // Generate voice clone button click handler
-  if (generateButton) {
-    generateButton.addEventListener('click', generateVoiceClone);
-  }
-
-  async function startRecording() {
-    try {
-      console.log('Starting recording...');
-      
-      // Clean up any existing recording state
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        console.log('Cleaning up existing MediaRecorder');
-        mediaRecorder.stop();
-      }
-      if (stream) {
-        console.log('Cleaning up existing stream');
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-      }
-      
-      // Try modern API first
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        console.log('Using modern getUserMedia API');
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } 
-      // Fallback to legacy APIs for Safari
-      else if (navigator.getUserMedia) {
-        console.log('Using legacy getUserMedia API');
-        stream = await new Promise((resolve, reject) => {
-          navigator.getUserMedia({ audio: true }, resolve, reject);
-        });
-      }
-      else if (navigator.webkitGetUserMedia) {
-        console.log('Using webkit getUserMedia API');
-        stream = await new Promise((resolve, reject) => {
-          navigator.webkitGetUserMedia({ audio: true }, resolve, reject);
-        });
-      }
-      else {
-        throw new Error('No microphone API available');
-      }
-      
-      console.log('Microphone stream obtained successfully');
-      recordedChunks = [];
-      
-      // Check if MediaRecorder is supported
-      if (!window.MediaRecorder) {
-        throw new Error('MediaRecorder is not supported in this browser');
-      }
-      
-      // Try different MIME types for better compatibility
-      let mimeType = 'audio/webm';
-      if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4';
-      } else if (MediaRecorder.isTypeSupported('audio/wav')) {
-        mimeType = 'audio/wav';
-      }
-      console.log('Using MIME type:', mimeType);
-      
-      mediaRecorder = new MediaRecorder(stream, { mimeType });
-      console.log('MediaRecorder created successfully');
-      
-      mediaRecorder.ondataavailable = (event) => {
-        console.log('Data available event:', event.data.size, 'bytes');
-        if (event.data.size > 0) {
-          recordedChunks.push(event.data);
-          console.log('Added chunk, total chunks:', recordedChunks.length, 'total size:', recordedChunks.reduce((sum, chunk) => sum + chunk.size, 0));
-        } else {
-          console.warn('Received empty data chunk');
-        }
-      };
-      
-      mediaRecorder.onstop = () => {
-        console.log('Recording stopped, processing', recordedChunks.length, 'chunks');
-        
-        // Give a small delay to ensure all data is collected
-        setTimeout(() => {
-          try {
-            console.log('Final chunk count after delay:', recordedChunks.length);
-            
-            if (recordedChunks.length === 0) {
-              console.error('No recorded chunks available after delay!');
-              throw new Error('No audio data was recorded');
-            }
-            
-            console.log('Processing', recordedChunks.length, 'chunks');
-            
-            const blob = new Blob(recordedChunks, { type: mimeType });
-            console.log('Created blob:', blob.size, 'bytes, type:', blob.type);
-            
-            if (blob.size === 0) {
-              console.error('Blob is empty! Recorded chunks:', recordedChunks.length);
-              for (let i = 0; i < recordedChunks.length; i++) {
-                console.error(`Chunk ${i}:`, recordedChunks[i].size, 'bytes');
-              }
-              throw new Error('Recorded audio blob is empty');
-            }
-          
-          // Clear any existing blob URL before creating a new one
-          if (recordedAudio && recordedAudio.src) {
-            URL.revokeObjectURL(recordedAudio.src);
-          }
-          
-          const audioUrl = URL.createObjectURL(blob);
-          console.log('Created audio URL:', audioUrl);
-          
-          if (!recordedAudio) {
-            throw new Error('Audio element not found');
-          }
-          
-          // Clear any existing event handlers
-          recordedAudio.onerror = null;
-          recordedAudio.onloadeddata = null;
-          recordedAudio.oncanplay = null;
-          recordedAudio.oncanplaythrough = null;
-          
-          // Reset audio element properties
-          recordedAudio.currentTime = 0;
-          recordedAudio.volume = 1;
-          
-          // Set up event handlers
-          recordedAudio.onloadeddata = () => {
-            console.log('Audio loaded successfully, duration:', recordedAudio.duration, 'seconds');
-            
-            // Validate that we have a reasonable duration
-            if (recordedAudio.duration < 0.1) {
-              console.warn('Audio duration is very short:', recordedAudio.duration);
-              showPermissionError('Recording appears to be too short. Please record for at least a few seconds.');
-              return;
-            }
-
-            // Enforce 30-60 seconds window before enabling generate
-            if (recordedAudio.duration < 30 || recordedAudio.duration > 60) {
-              const msg = recordedAudio.duration < 30
-                ? 'Recording must be at least 30 seconds (current: ' + recordedAudio.duration.toFixed(1) + 's)'
-                : 'Recording must be at most 60 seconds (current: ' + recordedAudio.duration.toFixed(1) + 's)';
-              showPermissionError(msg);
-              if (generateButton) {
-                generateButton.disabled = true;
-                generateButton.style.display = 'none';
-              }
-            } else {
-              if (generateButton) {
-                generateButton.disabled = false;
-                generateButton.style.display = 'inline-flex';
-              }
-              if (recordingStatus) {
-                recordingStatus.style.display = 'block';
-                const statusText = recordingStatus.querySelector('.status-text');
-                if (statusText) {
-                  statusText.style.color = '';
-                  statusText.textContent = 'Ready to upload (' + recordedAudio.duration.toFixed(1) + 's)';
-                }
-              }
-            }
-            
-            // Show playback section
-            if (playbackSection) {
-              playbackSection.style.display = 'block';
-              console.log('Playback section shown');
-            } else {
-              console.warn('Playback section element not found');
-            }
-          };
-          
-          recordedAudio.onerror = (error) => {
-            console.error('Error loading audio:', error);
-            console.error('Audio error details:', recordedAudio.error);
-            console.error('Audio src when error occurred:', recordedAudio.src);
-            showPermissionError('Failed to load recorded audio. Please try recording again.');
-            
-            // Clean up the failed blob URL
-            if (recordedAudio.src) {
-              URL.revokeObjectURL(recordedAudio.src);
-              recordedAudio.src = '';
-            }
-          };
-          
-          recordedAudio.oncanplay = () => {
-            console.log('Audio can play');
-          };
-          
-          // Set the audio source
-          recordedAudio.src = audioUrl;
-          console.log('Audio src set to:', audioUrl);
-          
-          // Stop all tracks
-          if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-          }
-          
-          } catch (error) {
-            console.error('Error processing recorded audio:', error);
-            showPermissionError('Failed to process recorded audio: ' + error.message);
-            
-            // Clean up on error
-            if (stream) {
-              stream.getTracks().forEach(track => track.stop());
-              stream = null;
-            }
-          }
-        }, 100); // Small delay to ensure all data is collected
-      };
-      
-      mediaRecorder.onerror = (event) => {
-        console.error('MediaRecorder error:', event.error);
-        showPermissionError('Recording failed: ' + (event.error?.message || 'Unknown error'));
-        
-        // Clean up on error
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-          stream = null;
-        }
-        mediaRecorder = null;
-      };
-      
-      console.log('Starting MediaRecorder...');
-      mediaRecorder.start(100); // Collect data every 100ms for better chunking
-      recordingStartTime = Date.now();
-      
-      console.log('MediaRecorder started, state:', mediaRecorder.state);
-      
-      // Set a timeout to automatically stop recording after 2 minutes (120 seconds)
-      // This prevents the recording from hanging indefinitely
-      setTimeout(() => {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-          console.log('Auto-stopping recording after 2 minutes');
-          stopRecording();
-        }
-      }, 120000);
-      
-      // Update UI for recording state
-      if (microphoneContainer) microphoneContainer.classList.add('recording');
-      if (recordingStatus) recordingStatus.style.display = 'none';
-      if (recordingTimer) recordingTimer.style.display = 'block';
-      if (recordingControls) recordingControls.style.display = 'block';
-      if (recordButton) recordButton.style.display = 'none';
-      
-      // Start timer
-      startTimer();
-      console.log('Recording started successfully');
-      
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-      
-      // Provide specific error messages based on the error type
-      let errorMessage = 'Unable to access microphone. ';
-      
-      if (error.name === 'NotAllowedError') {
-        errorMessage += 'Please allow microphone access when prompted by your browser, or check your browser settings to enable microphone permissions for this site.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage += 'No microphone found. Please connect a microphone and try again.';
-      } else if (error.name === 'NotReadableError') {
-        errorMessage += 'Microphone is already in use by another application. Please close other apps using the microphone and try again.';
-      } else if (error.name === 'OverconstrainedError') {
-        errorMessage += 'Microphone does not meet the required constraints. Please try a different microphone.';
-      } else if (error.name === 'SecurityError') {
-        errorMessage += 'Microphone access blocked for security reasons. Please make sure you\'re using HTTPS or localhost.';
-      } else if (error.message && error.message.includes('MediaRecorder')) {
-        errorMessage = 'Audio recording is not supported in this browser. Please try using Chrome, Firefox, or a newer version of Safari.';
-      } else if (error.message && (error.message.includes('audio data') || error.message.includes('empty'))) {
-        errorMessage = 'Recording failed - no audio data was captured. Please check your microphone and try again.';
-      } else if (error.message && error.message.includes('uninitialized')) {
-        errorMessage = 'Recording system not properly initialized. Please refresh the page and try again.';
+  function setWaveActive(active) {
+    document.querySelectorAll('.wave-bar').forEach(bar => {
+      if (active) {
+        bar.classList.add('active');
+        bar.style.animationPlayState = 'running';
       } else {
-        errorMessage += 'Please check your microphone permissions and try again. Error: ' + (error.message || 'Unknown error');
+        bar.classList.remove('active');
+        bar.style.animationPlayState = 'paused';
       }
-      
-      showPermissionError(errorMessage);
-      
-      // Clean up on error
-      if (stream) {
-        try {
-          stream.getTracks().forEach(track => track.stop());
-        } catch (cleanupError) {
-          console.warn('Error cleaning up stream:', cleanupError);
-        }
-        stream = null;
-      }
-      mediaRecorder = null;
-    }
+    });
   }
 
-  function stopRecording() {
-    console.log('Stop recording called, MediaRecorder state:', mediaRecorder?.state);
-    
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      console.log('Stopping MediaRecorder');
-      mediaRecorder.stop();
-      
-      // Update UI for stopped state
-      microphoneContainer.classList.remove('recording');
-      recordingTimer.style.display = 'none';
-      recordingControls.style.display = 'none';
-      recordButton.style.display = 'block';
-      recordingStatus.style.display = 'block';
-      recordingStatus.querySelector('.status-text').textContent = 'Processing recording...';
-      
-      // Stop timer
-      stopTimer();
-    } else {
-      // Handle case where recording wasn't properly started
-      console.warn('Stop recording called but no active recording found, state:', mediaRecorder?.state);
-      showPermissionError('Recording was not properly started. Please try again.');
-      
-      // Reset UI anyway
-      microphoneContainer.classList.remove('recording');
-      recordingTimer.style.display = 'none';
-      recordingControls.style.display = 'none';
-      recordButton.style.display = 'block';
-      recordingStatus.style.display = 'block';
-      recordingStatus.querySelector('.status-text').textContent = 'Ready to record';
-    }
-  }
-
-  function resetRecording() {
-    console.log('Resetting recording state');
-    
-    // Stop any active recording
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      try {
-        mediaRecorder.stop();
-      } catch (error) {
-        console.warn('Error stopping mediaRecorder:', error);
-      }
-    }
-    
-    // Stop any active stream
-    if (stream) {
-      console.log('Stopping active stream');
-      stream.getTracks().forEach(track => {
-        track.stop();
-      });
-      stream = null;
-    }
-    
-    // Clear any existing blob URL to free memory
-    if (recordedAudio) {
-      console.log('Clearing audio element, current src:', recordedAudio.src);
-      if (recordedAudio.src) {
-        URL.revokeObjectURL(recordedAudio.src);
-        recordedAudio.src = '';
-      }
-      
-      // Clear any existing event handlers
-      recordedAudio.onerror = null;
-      recordedAudio.onloadeddata = null;
-      recordedAudio.oncanplay = null;
-      recordedAudio.oncanplaythrough = null;
-    }
-    
-    // Reset all UI elements
-    if (playbackSection) playbackSection.style.display = 'none';
-    if (processingSection) processingSection.style.display = 'none';
-    if (microphoneContainer) microphoneContainer.classList.remove('recording');
-    if (recordingTimer) recordingTimer.style.display = 'none';
-    if (recordingControls) recordingControls.style.display = 'none';
-    if (recordingStatus) {
-      recordingStatus.style.display = 'block';
-      const statusText = recordingStatus.querySelector('.status-text');
-      if (statusText) {
-        statusText.textContent = 'Tap the microphone to start';
-        statusText.style.color = ''; // Reset color
-      }
-    }
-    if (recordButton) recordButton.style.display = 'block';
-    
-    // Clear recorded data
-    recordedChunks = [];
-    mediaRecorder = null;
-    
-    // Reset timer
-    stopTimer();
-    if (timerDisplay) timerDisplay.textContent = '00:00';
-    
-    console.log('Recording state reset complete');
-  }
-
+  // Timer helpers
+  let timer = null;
+  let seconds = 0;
   function startTimer() {
-    timerInterval = setInterval(() => {
-      const elapsed = Date.now() - recordingStartTime;
-      const minutes = Math.floor(elapsed / 60000);
-      const seconds = Math.floor((elapsed % 60000) / 1000);
-      timerDisplay.textContent = minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
+    seconds = 0;
+    if (timerDisplay) timerDisplay.textContent = '00:00';
+    timer = setInterval(() => {
+      seconds += 1;
+      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const s = (seconds % 60).toString().padStart(2, '0');
+      if (timerDisplay) timerDisplay.textContent = `${m}:${s}`;
     }, 1000);
   }
+  function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
 
-  function stopTimer() {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
-  }
-
-  function generateVoiceClone() {
-    if (!recordedChunks.length) {
-      showPermissionError('No recording to upload. Please record first.');
-      return;
-    }
-    // Derive duration from audio element if available
-    let durationSeconds = null;
+  // Simple recording stub with microphone; falls back to animation-only if not available
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  async function startRecording() {
     try {
-      if (recordedAudio && !isNaN(recordedAudio.duration) && recordedAudio.duration > 0) {
-        durationSeconds = recordedAudio.duration;
-      }
-    } catch (_) {}
-    if (durationSeconds !== null && (durationSeconds < 30 || durationSeconds > 60)) {
-      showPermissionError('Duration must be between 30 and 60 seconds. Current: ' + durationSeconds.toFixed(1) + 's');
-      return;
-    }
-    playbackSection.style.display = 'none';
-    processingSection.style.display = 'block';
-    const progressFill = document.querySelector('.progress-fill');
-    if (progressFill) progressFill.style.animation = 'progressAnimation 3s ease-in-out';
-
-    const userId = (document.cookie.match(/user_id=([^;]+)/) || [])[1] || localStorage.getItem('user_id');
-    if (!userId) {
-      showPermissionError('User not identified. Please login again.');
-      processingSection.style.display = 'none';
-      return;
-    }
-
-    let mimeType = 'audio/webm';
-    if (MediaRecorder && MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
-    else if (MediaRecorder && MediaRecorder.isTypeSupported('audio/wav')) mimeType = 'audio/wav';
-    const blob = new Blob(recordedChunks, { type: mimeType });
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const base64 = reader.result; // data URL
-        const { uploadUserVoice } = await import('../api.ts');
-        const resp = await uploadUserVoice(userId, base64, mimeType, durationSeconds || undefined);
-        processingSection.style.display = 'none';
-        const shortId = (userId || '').substring(0,6);
-        if (recordingStatus) {
-          const statusText = recordingStatus.querySelector('.status-text');
-          if (statusText) {
-            const durationLabel = durationSeconds ? durationSeconds.toFixed(1) + 's' : '';
-            statusText.textContent = 'Voice clone saved: user_' + shortId + ' ' + (durationLabel ? '('+durationLabel+')' : '');
-          }
-          recordingStatus.style.color = '#2ed573';
-          recordingStatus.style.display = 'block';
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        if (audioEl) {
+          audioEl.src = url;
+          audioEl.load();
         }
-      } catch (e) {
-        console.error('Voice upload failed', e);
-        processingSection.style.display = 'none';
-        showPermissionError('Upload failed: ' + (e.message || 'Unknown error'));
-      }
-    };
-    reader.onerror = () => {
-      processingSection.style.display = 'none';
-      showPermissionError('Failed reading audio for upload');
-    };
-    reader.readAsDataURL(blob);
+        if (playbackSection) playbackSection.style.display = '';
+      };
+      mediaRecorder.start();
+      if (statusEl) statusEl.textContent = 'Recording...';
+      if (timerWrap) timerWrap.style.display = '';
+      if (controlsWrap) controlsWrap.style.display = '';
+      setWaveActive(true);
+      startTimer();
+    } catch (err) {
+      console.warn('Microphone not available, fallback to visual only', err);
+      // Fallback: just animate and show timer
+      if (statusEl) statusEl.textContent = 'Recording (visual only)...';
+      if (timerWrap) timerWrap.style.display = '';
+      if (controlsWrap) controlsWrap.style.display = '';
+      setWaveActive(true);
+      startTimer();
+    }
   }
 
-  async function checkMicrophonePermission() {
+  function stopRecordingFlow() {
     try {
-      // Check if permissions API is available
-      if (navigator.permissions && navigator.permissions.query) {
-        const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
-        
-        if (permissionStatus.state === 'denied') {
-          showPermissionError('Microphone permission has been denied. Please reset permissions in your browser settings.');
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+      }
+    } catch {}
+    stopTimer();
+    if (statusEl) statusEl.textContent = 'Tap the microphone to start recording';
+    setWaveActive(false);
+    if (timerWrap) timerWrap.style.display = 'none';
+    if (controlsWrap) controlsWrap.style.display = 'none';
+  }
+
+  // Upload MP3 handling
+  uploadBtn?.addEventListener('click', () => fileInput?.click());
+  fileInput?.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) { alert('Please select an audio file.'); return; }
+    if (file.size > 3 * 1024 * 1024) { alert('File must be ≤ 3MB.'); return; }
+    const url = URL.createObjectURL(file);
+    if (audioEl) {
+      audioEl.src = url;
+      audioEl.load();
+    }
+    if (playbackSection) playbackSection.style.display = '';
+
+    // If a sample was already uploaded, auto-upload re-uploads
+    if (hasUploadedSample) {
+      (async () => {
+        try {
+          if (processingSection) processingSection.style.display = '';
+          const userId = getUserId();
+          if (!userId) { alert('Please log in again.'); return; }
+          const base64 = await blobToBase64(file);
+          const { apiClient } = await import('../api.ts');
+          await apiClient.uploadUserVoice(userId, base64, file.type || 'audio/mpeg', undefined, undefined);
+          alert('Voice sample updated.');
+        } catch (err) {
+          console.warn('Re-upload failed', err);
+          alert('Failed to update your voice sample. Try again.');
+        } finally {
+          if (processingSection) processingSection.style.display = 'none';
         }
-        
-        // Listen for permission changes
-        permissionStatus.addEventListener('change', () => {
-          if (permissionStatus.state === 'denied') {
-            showPermissionError('Microphone permission was denied. Please allow access in your browser settings.');
-          }
-        });
-      }
-    } catch (error) {
-      // Permission API not fully supported, will handle during recording attempt
+      })();
     }
+  });
+
+  // Audio-driven waveform animation
+  if (audioEl) {
+    audioEl.addEventListener('play', () => setWaveActive(true));
+    audioEl.addEventListener('pause', () => {
+      document.querySelectorAll('.wave-bar').forEach(bar => bar.style.animationPlayState = 'paused');
+    });
+    audioEl.addEventListener('ended', () => setWaveActive(false));
   }
 
-  async function requestMicrophonePermission() {
+  // Actions
+  recordBtn?.addEventListener('click', startRecording);
+  stopBtn?.addEventListener('click', stopRecordingFlow);
+  reRecordBtn?.addEventListener('click', () => {
+    // Reset playback and allow new recording/upload
+    if (audioEl) { audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load(); }
+    if (playbackSection) playbackSection.style.display = 'none';
+    if (processingSection) processingSection.style.display = 'none';
+    setWaveActive(false);
+  });
+
+  generateBtn?.addEventListener('click', async () => {
     try {
-      // First, try to get microphone access to trigger the browser's permission dialog
-      const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Immediately stop the test stream
-      testStream.getTracks().forEach(track => track.stop());
-      
-      return true;
-    } catch (error) {
-      console.error('Microphone permission denied or failed:', error);
-      
-      // Show a simple error message
-      showPermissionError('Microphone access is required for voice recording. Please allow microphone access when prompted by your browser.');
-      return false;
+      // Prevent double clicks
+      if (generateBtn) generateBtn.disabled = true;
+      if (!audioEl || !audioEl.src) { alert('Please record or upload an audio sample first.'); return; }
+      if (processingSection) processingSection.style.display = '';
+      // Convert current audio source to base64 by fetching the blob
+      const res = await fetch(audioEl.src);
+      const blob = await res.blob();
+      const base64 = await blobToBase64(blob);
+      const userId = getUserId();
+      if (!userId) { alert('Please log in again.'); return; }
+      const { apiClient } = await import('../api.ts');
+      await apiClient.uploadUserVoice(userId, base64, blob.type || 'audio/mpeg', undefined, undefined);
+      alert('Voice sample saved. You can now perform routines.');
+      // Hide the Generate button after first successful upload
+      hasUploadedSample = true;
+      if (generateBtn) generateBtn.style.display = 'none';
+    } catch (err) {
+      console.warn('Voice upload failed', err);
+      alert('Failed to save your voice sample. Try again.');
+    } finally {
+      if (generateBtn) generateBtn.disabled = false;
+      if (processingSection) processingSection.style.display = 'none';
     }
+  });
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const res = reader.result;
+        if (typeof res === 'string') resolve(res.split(',')[1] || res);
+        else reject(new Error('Invalid reader result'));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
 
-  function showPermissionError(message) {
-    console.error('Permission error:', message);
-    
-    // Update the status text to show the error
-    if (recordingStatus) {
-      const statusText = recordingStatus.querySelector('.status-text');
-      if (statusText) {
-        statusText.textContent = message;
-        recordingStatus.style.color = '#ff4757';
-      }
-    }
-    
-    // Also show alert for immediate feedback
-    alert(message);
+  function getUserId() {
+    const match = document.cookie.match(/(?:^|; )user_id=([^;]+)/);
+    if (match) return decodeURIComponent(match[1]);
+    try { return localStorage.getItem('user_id'); } catch { return null; }
   }
-  
-  console.log('Voice clone event listeners setup completed');
 }

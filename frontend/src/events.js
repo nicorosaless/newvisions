@@ -51,7 +51,8 @@ function setupNavigationListeners() {
     { id: 'back-to-settings', action: () => navigateToScreen('settings') },
     { id: 'back-to-routine-selection', action: () => navigateToScreen('routine-selection') },
     { id: 'back-to-routine', action: () => navigateToScreen('routine-selection') },
-    { id: 'edit-recordings', action: () => navigateToScreen('home') }
+    { id: 'edit-recordings', action: () => navigateToScreen('home') },
+    { id: 'continue-in-browser', action: () => { try { localStorage.setItem('skip_pwa_prompt', 'true'); } catch (_) {} navigateToScreen('home'); } }
   ];
   navigationButtons.forEach(({ id, action }) => {
     const button = document.getElementById(id);
@@ -84,7 +85,7 @@ function setupActionListeners() {
     if (button) button.addEventListener('click', action);
   });
 
-  // Perform button gating by voice clone presence
+  // Perform button gating by voice sample presence (must have sample before performing)
   const performBtn = document.getElementById('perform-btn');
   if (performBtn) {
     performBtn.addEventListener('click', async () => {
@@ -101,19 +102,19 @@ function setupActionListeners() {
           alert('Unable to verify voice status. Try again.');
           return;
         }
-        if (!meta.hasClone) {
-          if (!meta.hasSample) {
-            if (confirm('You must record a 30–60s voice sample before performing. Go to voice clone setup now?')) {
-              navigateToScreen('voice-clone');
-            }
-            return;
+        if (!meta.hasSample) {
+          if (confirm('You must record a 30–60s voice sample before performing. Go to Settings to create it now?')) {
+            navigateToScreen('settings');
           }
-          // Has sample but clone not ready (creation failed or pending)
-          alert('Your voice clone is not ready yet. Please wait a moment and try again.');
           return;
         }
-        // Touch pool to mark as MRU before rutina selection
-        try { await apiClient.touchVoicePool(userId); } catch (_) { /* non-fatal */ }
+        if (!meta.hasClone) {
+          // The user has a sample but hasn't generated/assigned a voice_clone_id yet
+          if (confirm('Finish generating your voice clone before performing. Go to Settings now?')) {
+            navigateToScreen('settings');
+          }
+          return;
+        }
         navigateToScreen('routine-selection');
       } catch (e) {
         console.warn('Perform gating error', e);
